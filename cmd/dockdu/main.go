@@ -28,19 +28,29 @@ func main() {
 
 // run parses args and returns the process exit code.
 // Exit codes follow SPEC.md §5: 0 report complete, 1 daemon unreachable,
-// 2 report rendered with warnings (or usage error).
+// 2 report rendered with warnings. Usage errors also exit 2 (Go flag
+// convention; not defined by the spec).
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("dockdu", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "print version and exit")
-	fs.Usage = func() {
-		fmt.Fprint(stderr, usageText)
+	usage := func(w io.Writer) {
+		fmt.Fprint(w, usageText)
+		fs.SetOutput(w)
 		fs.PrintDefaults()
+		fs.SetOutput(stderr)
 	}
+	fs.Usage = func() { usage(stderr) }
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
+			usage(stdout) // requested help goes to stdout so it can be piped
 			return 0
 		}
+		return 2
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintf(stderr, "dockdu: unexpected argument %q\n", fs.Arg(0))
+		usage(stderr)
 		return 2
 	}
 	if *showVersion {
