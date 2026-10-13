@@ -22,13 +22,18 @@ var rotatedSuffix = regexp.MustCompile(`^(\.[0-9]+(\.gz)?)?$`)
 
 // Logs applies SPEC §6.5. It only stats files: it never opens, reads or
 // follows symbolic links. dataRoot overrides the daemon's data root (the
-// snapshot value is used when dataRoot is empty).
+// snapshot value is used when dataRoot is empty); with an override, log
+// paths the daemon reported under its own root are rebased onto it, which
+// is what makes `--data-root /mnt/docker` work when the root is mounted
+// somewhere else.
 func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
-	if dataRoot == "" {
-		dataRoot = s.Daemon.DataRoot
+	daemonRoot := s.Daemon.DataRoot
+	if daemonRoot == "" {
+		daemonRoot = "/var/lib/docker"
 	}
+	override := dataRoot != "" && filepath.Clean(dataRoot) != filepath.Clean(daemonRoot)
 	if dataRoot == "" {
-		dataRoot = "/var/lib/docker"
+		dataRoot = daemonRoot
 	}
 	out := report.Logs{Complete: true, Items: make([]report.LogItem, 0, len(s.Containers)), Suggestions: []string{}}
 	var warns []string
@@ -45,8 +50,11 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 		case c.LogDriver == "json-file":
 			it.Rotation, it.MaxSize, it.MaxFile = rotationJSONFile(c.LogOpts)
 			path := c.LogPath
-			if path == "" {
+			switch {
+			case path == "":
 				path = filepath.Join(dataRoot, "containers", c.ID, c.ID+"-json.log")
+			case override && strings.HasPrefix(path, daemonRoot+string(filepath.Separator)):
+				path = filepath.Join(dataRoot, strings.TrimPrefix(path, daemonRoot))
 			}
 			measure(&it, filepath.Dir(path), filepath.Base(path), &out, &warns)
 			if it.Measured && it.Rotation == "unbounded" && it.Bytes > 0 {

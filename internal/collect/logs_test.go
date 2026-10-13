@@ -150,3 +150,21 @@ func TestLogsEmpty(t *testing.T) {
 		t.Fatalf("empty: %+v %v", got, warns)
 	}
 }
+
+func TestLogsDataRootOverrideRebasesReportedPath(t *testing.T) {
+	root := t.TempDir()
+	id := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	writeFile(t, filepath.Join(root, "containers", id, id+"-json.log"), 42)
+	s := &engine.Snapshot{Daemon: engine.Daemon{DataRoot: "/var/lib/docker"}, Containers: []engine.Container{
+		{ID: id, Name: "moved", LogDriver: "json-file", LogPath: "/var/lib/docker/containers/" + id + "/" + id + "-json.log"},
+	}}
+	got, _ := Logs(s, root)
+	if !got.Items[0].Measured || got.Items[0].Bytes != 42 {
+		t.Fatalf("path under the daemon root must be rebased onto --data-root, got %+v", got.Items[0])
+	}
+	// Without an override the daemon's absolute path is used as is.
+	got, _ = Logs(s, "")
+	if got.Items[0].Measured {
+		t.Fatalf("without override the daemon path (missing here) must stay unmeasured, got %+v", got.Items[0])
+	}
+}

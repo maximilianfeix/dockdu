@@ -62,7 +62,14 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			}
 			rot := it.Rotation
 			if it.Rotation == "bounded" && it.MaxSize != "" {
-				rot = fmt.Sprintf("bounded %s × %s", it.MaxSize, it.MaxFile)
+				ms, mf := it.MaxSize, it.MaxFile
+				defaults := strings.Contains(ms, "(driver default)") || strings.Contains(mf, "(driver default)")
+				ms = strings.TrimSuffix(ms, " (driver default)")
+				mf = strings.TrimSuffix(mf, " (driver default)")
+				rot = fmt.Sprintf("bounded %s × %s", ms, mf)
+				if defaults {
+					rot += " (driver defaults)"
+				}
 			}
 			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\n", it.Name, orDash(it.Project), it.Driver, size, files, rot, it.Note)
 		}
