@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 6 (renderers, Desktop section, CLI) complete on branch `phase-6-render` (PR #12). Next: Phase 7 (release candidate: GoReleaser, container image, README, demo).
+Phase 7 (release candidate) in progress on branch `phase-7-release`: GoReleaser config validated with 2.18.3, snapshot builds four archives and the ghcr image for amd64 and arm64 on the project builder `dockdu-builder`, README with banner and demo, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, CodeQL, Scorecard, Dependabot, CI integration job.
 
 ## Done
 
@@ -16,7 +16,7 @@ Phase 6 (renderers, Desktop section, CLI) complete on branch `phase-6-render` (P
 - 2026-10-13: Phase 3: `internal/collect/buildcache.go` (engine reclaimable, shared, private, in-use, not-freed-by-prune, duplicate IDs counted once, total mismatch warned), `images.go` (dangling, unique bytes only when Containers==0 and SharedSize known, sorted by size), `internal/report/suggest.go` (no volume prune, ever). Tests written first; 18 tests green.
 - 2026-10-13: Phase 4: `internal/collect/logs.go` (json-file path from inspect or derived, local driver under local-logs/, rotated siblings summed, Lstat only, symlinks ignored, unreadable → unmeasured + incomplete, other drivers "not on disk"), 8 unit tests, integration test SPEC §9.4 creates its own `dockdu.test=1` container via the SDK and removes it by ID. `make integration` runs it inside golang:1.27 with the socket and `/var/lib/docker:ro` mounted: PASS, 3116 bytes in 3 files observed. On the macOS host the test skips (data root inside the VM).
 - 2026-10-13: Phase 5: `compose.go` (projects from the compose label, images attributed through container references, images used by several projects reported per project in SharedImageBytes and counted once at section level so project totals stay additive, dangling and unused images in the (none) bucket, stopped containers older than 7 days), `volumes.go` (referenced / unreferenced / unknown; orphan only when unreferenced and not compose-created; one `docker volume rm` hint per orphan, never bulk), `AttachImageProjects`. Tests first; all green.
-- 2026-10-13: Phase 6: `internal/report/text.go` (SPEC §7 layout, golden test), `json.go`, `internal/collect/build.go`, `desktop_darwin.go` (Docker.raw / OrbStack apparent vs allocated), `cmd/dockdu` flags `--json --top --data-root --no-desktop`, exit codes 0/1/2 tested from the fixture. Collector review (phases 3–5) applied here: container IDs validated as hex before path use, log paths kept under the data root, build-cache invariant warned, private bytes unknown instead of 0 on mismatch, section total counts shared images once, `image prune -a` hint warns about locally built images, duplicate IDs deduplicated, dangling-unknown counted, ImageID fallback by tag.
+- 2026-10-13: Phase 6: text and JSON renderers (golden test), report builder, Docker Desktop section, CLI flags `--json --top --data-root --no-desktop`, exit codes 0/1/2/64. Collector review (phases 3–5) and render review applied: IDs validated, paths under the data root, shared images counted once at section level, unmeasured logs as -1 and counted per project, lower-bound markers, control characters neutralised, effective data root reported.
 
 ## Verified results (observed at runtime unless noted)
 
@@ -40,7 +40,13 @@ See `docs/SPIKE.md`, section "Spec amendments proposed in this PR" (6.1, 6.4, 6.
 
 ## Test resources owned by this project
 
-Containers with label `dockdu.test=1`: `dockdu-test-logs` (1f1412f2177f), `dockdu-test-default` (871547ac7ec5), `dockdu-test-local` (34b1d5c11f04). Image `alpine:3.22`. Remove containers by ID at project end; never prune.
+- Containers with label `dockdu.test=1`: `dockdu-test-logs` (1f1412f2177f), `dockdu-test-default` (871547ac7ec5), `dockdu-test-local` (34b1d5c11f04).
+- Demo compose project `dockdu-demo` (containers 02ebd10c9e0b web, 01db9eef1699 worker, 653a0ccb8469 db; volume `dockdu-demo_pgdata`; compose file in the session scratchpad), labelled `dockdu.test=1`.
+- Orphan demo volume `dockdu-orphan-demo` (label `dockdu.test=1`).
+- Buildx builder `dockdu-builder` (container `buildx_buildkit_dockdu-builder0`, volume `buildx_buildkit_dockdu-builder0_state`).
+- Local snapshot images `ghcr.io/maximilianfeix/dockdu:*` (never pushed).
+- Image `alpine:3.22` (kept for the integration test).
+Remove containers and volumes by ID/name after checking the label; never prune.
 
 ## Next executable step
 
