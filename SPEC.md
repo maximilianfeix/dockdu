@@ -27,7 +27,7 @@ After: one command, a few seconds, a report that attributes the gap and names a 
    4. Compose projects: per project (label `com.docker.compose.project`): containers, images referenced, volumes, log bytes, total. A final group "no compose project" for everything else. Orphans flagged: volumes with `RefCount == 0`, dangling images, stopped containers older than 7 days.
    5. Images: total, dangling, "unique bytes freed if removed" = `Size - SharedSize` for images with `Containers == 0`.
    6. Volumes: per volume size (or "unknown" when `-1`), reference count, compose project.
-   7. Docker Desktop (macOS only, only when the VM disk file exists): apparent size vs allocated size of the VM disk file, bytes used inside the VM (sum of sections above), and a fixed one-paragraph explanation of why the file does not shrink.
+   7. Docker Desktop (macOS only, only when the VM disk file exists): apparent size vs allocated size of the VM disk file, next to the sum of Docker-reported resource sizes, with a note that the two are different measures that may overlap, and a fixed one-paragraph explanation of why the file does not shrink.
 3. Every finding line that implies an action ends with one suggested command, printed as text. dockdu never executes anything that modifies state.
 4. Works in two ways: as a local binary, and as a container with
    `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v /var/lib/docker:/var/lib/docker:ro ghcr.io/maximilianfeix/dockdu`
@@ -65,8 +65,8 @@ Honours DOCKER_HOST, DOCKER_CERT_PATH, DOCKER_TLS_VERIFY, DOCKER_API_VERSION via
 
 - Engine client: `github.com/moby/moby/client` v0.6.2 (2026-10-08). Types: `github.com/moby/moby/api` v1.56.1 (2026-10-01).
 - Do NOT use `github.com/docker/docker`. It is deprecated since Engine 29.0, frozen at v28.5.2+incompatible and carries Go vulnerability advisories GO-2026-4883 and GO-2026-4887.
-- Minimum Go: 1.26 (required by the SDK since 29.8.0). Pin `go 1.26` in go.mod.
-- Only these third-party modules in v0.1: the two above. Standard library for everything else (flag, encoding/json, text/tabwriter, os, syscall). No cobra, no color library. If a third module seems necessary, stop and explain why.
+- Minimum Go: 1.26 (required by the SDK since 29.8.0). Pin `go 1.26` in go.mod. Installed on the development machine: go1.27.2.
+- Only these two direct third-party modules in v0.1. Their transitive requirements (go-connections, go-units, distribution/reference, containerd/errdefs, opencontainers specs, go-winio, x/sys, OpenTelemetry) are accepted and listed in docs/SPIKE.md. Standard library for everything else (flag, encoding/json, text/tabwriter, os, syscall). No cobra, no color library. If a third direct module seems necessary, stop and explain why.
 
 ### 6.2 Client construction
 
@@ -99,13 +99,14 @@ Relevant fields:
 - `volume.Volume`: `Name`, `Driver`, `Labels`, `Mountpoint`, `UsageData *UsageData{Size, RefCount}` (Size only for the `local` driver, otherwise -1; RefCount -1 when unknown).
 - `build.CacheRecord`: `ID`, `Parents`, `Type`, `Description`, `InUse`, `Shared`, `Size`, `CreatedAt`, `LastUsedAt *time.Time`, `UsageCount`.
 
-### 6.4 Build cache arithmetic (same as `docker buildx du`)
+### 6.4 Build cache arithmetic (amended after the Phase 0 spike)
 
-- total = sum of Size
-- reclaimable = sum of Size where `!InUse`
+- total = `BuildCache.TotalSize` from the API (equals the sum of record sizes).
+- reclaimable = `BuildCache.Reclaimable` from the API. This is the number `docker system df` prints. Observed on 2026-10-13: the engine excludes shared records, so it differs from `docker buildx du`, which counts every `!InUse` record. dockdu reports the engine value and never recomputes it.
 - shared = sum of Size where `Shared`
 - private = total - shared
 - "prune would NOT free" = sum of Size where `Shared || InUse`. Pruning a shared record only deletes metadata; the bytes stay with the image.
+- An estimate of freed space is not a guarantee: physical space inside a Docker Desktop VM file is only returned when Desktop compacts it.
 - Suggested command for reclaimable private cache: `docker builder prune --filter until=168h`. For everything unused: `docker builder prune -a`.
 
 ### 6.5 Container log files
@@ -147,6 +148,7 @@ Label keys (from docker/compose `pkg/api/labels.go`):
 - OrbStack: `~/Library/Group Containers/HUAQ24HBR6.dev.orbstack/data/data.img`, same measurement. Label the section "OrbStack" when only this file exists.
 - Fixed explanation paragraph (print verbatim, cite the Docker FAQ): space inside the VM file is freed when images, containers, volumes or build cache are removed. The file itself shrinks only when Docker Desktop compacts it; lowering the "Disk usage limit" in Settings → Resources → Advanced deletes the file and all images.
 - Detection: only on `runtime.GOOS == "darwin"` and only when the file exists. Inside the container image this section is always skipped.
+- Spike result 2026-10-13: with the containerd snapshotter (Desktop default) image bytes are not under `/var/lib/docker`, so dockdu does not measure inside the VM. It shows the allocated file size and the sum of API-reported sizes as two separate numbers and says so.
 
 ## 7. Output format
 
@@ -217,7 +219,7 @@ Errors are wrapped with `%w`. No panics outside `main`. Every collector returns 
 ## 10. Release procedure
 
 - GoReleaser v2. `builds`: linux and darwin, amd64 and arm64, `CGO_ENABLED=0`, `-trimpath`, ldflags set `main.version`.
-- `homebrew_casks` (not the deprecated `brews`) publishing to `maximilianfeix/homebrew-tap`, directory `Casks`. Unsigned binary: post-install hook running `xattr -dr com.apple.quarantine` on the staged binary.
+- `homebrew_casks` (not the deprecated `brews`) publishing to `maximilianfeix/homebrew-tap`, directory `Casks`. Unsigned binary: post-install hook running `xattr -dr com.apple.quarantine` on the staged binary, written as the `hooks.post.install` string form (`system_command "/usr/bin/xattr", args: [...]`), because GoReleaser 2.18.3 does not know `install_steps` (spike Q5).
 - `dockers_v2` (not the deprecated `dockers`) publishing `ghcr.io/maximilianfeix/dockdu` for linux/amd64 and linux/arm64 from a `FROM scratch` Dockerfile with `COPY $TARGETPLATFORM/dockdu /usr/bin/dockdu` and `ENTRYPOINT ["/usr/bin/dockdu"]`.
 - Tag `v0.1.0`, `gh release create v0.1.0 --generate-notes`. The release workflow needs a token with `contents:write` on the tap repo and `write:packages` for ghcr.
 - `.github/workflows/ci.yml`: build, vet, test, gofmt on push and PR. `.github/workflows/release.yml`: goreleaser on tag.
