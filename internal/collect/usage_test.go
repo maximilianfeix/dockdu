@@ -22,8 +22,9 @@ func TestDfTotalsSumsTheFourDfRows(t *testing.T) {
 
 func TestSummarizeAddsLogsAndFlagsIncomplete(t *testing.T) {
 	df := report.Summary{DfReportedBytes: 1000}
-	got := Summarize(df, report.Logs{TotalBytes: 250, Complete: false})
-	if got.DockerBytesTotal != 1250 || got.NotShownByDf != 250 {
+	got := Summarize(df, 300, report.Logs{TotalBytes: 250, Complete: false})
+	// 1000 reported by df − 300 shared build cache already inside images + 250 logs
+	if got.DockerBytesTotal != 950 || got.NotShownByDf != 250 || got.BuildCacheSharedBytes != 300 {
 		t.Fatalf("totals wrong: %+v", got)
 	}
 	if got.LogBytesComplete {

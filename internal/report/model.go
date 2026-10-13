@@ -46,11 +46,16 @@ type Summary struct {
 	// LogBytesComplete is false when at least one container's logs could not
 	// be measured; LogBytes is then a lower bound.
 	LogBytesComplete bool `json:"log_bytes_complete"`
-	// DockerBytesTotal = DfReportedBytes + LogBytes. Shared layers are
-	// counted once by df, so this is a resource total, not a disk-block count.
-	DockerBytesTotal int64    `json:"docker_bytes_total"`
-	NotShownByDf     int64    `json:"not_shown_by_df_bytes"`
-	Suggestions      []string `json:"suggestions"`
+	// BuildCacheSharedBytes are build-cache bytes that also belong to an
+	// image; df counts them in both rows, dockdu subtracts them once.
+	BuildCacheSharedBytes int64 `json:"build_cache_shared_bytes"`
+	// DockerBytesTotal = DfReportedBytes − BuildCacheSharedBytes + LogBytes.
+	// Shared layers are counted once, as df does: a resource total, not a
+	// disk-block count.
+	DockerBytesTotal int64 `json:"docker_bytes_total"`
+	// NotShownByDf is the log bytes: the only part df does not report.
+	NotShownByDf int64    `json:"not_shown_by_df_bytes"`
+	Suggestions  []string `json:"suggestions"`
 }
 
 // BuildCache follows SPEC §6.4.
