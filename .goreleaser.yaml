@@ -1,0 +1,75 @@
+# GoReleaser v2 (validated with 2.18.3). Publishing is triggered by a tag;
+# `goreleaser release --snapshot --clean` builds everything locally.
+version: 2
+
+project_name: dockdu
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: dockdu
+    main: ./cmd/dockdu
+    binary: dockdu
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{ .Version }}"]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^chore:", "^wip:"]
+
+release:
+  # Not a draft: the cask and the ghcr image point at the release assets the
+  # moment they are published, so the release must be public at the same time.
+  draft: false
+  prerelease: auto
+
+homebrew_casks:
+  - name: dockdu
+    repository:
+      owner: maximilianfeix
+      name: homebrew-tap
+      branch: main
+      # The Actions token cannot write to the tap repository; a PAT with
+      # contents:write on maximilianfeix/homebrew-tap is passed from release.yml.
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: https://github.com/maximilianfeix/dockdu
+    description: "Explains where Docker's disk space went and what prune would NOT give back"
+    binaries: [dockdu]
+    hooks:
+      post:
+        # The binary is not notarised; remove the quarantine flag so macOS runs it.
+        # Guarded so the same cask installs on Linuxbrew, where xattr does not exist.
+        install: |
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/dockdu"] if File.executable?("/usr/bin/xattr")
+
+dockers_v2:
+  - id: dockdu
+    dockerfile: Dockerfile
+    images: ["ghcr.io/maximilianfeix/dockdu"]
+    tags: ["v{{ .Version }}", "latest"]
+    platforms: [linux/amd64, linux/arm64]
+    labels:
+      org.opencontainers.image.title: dockdu
+      org.opencontainers.image.description: "Explains where Docker's disk space went and what prune would NOT give back. Read-only."
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.licenses: MIT

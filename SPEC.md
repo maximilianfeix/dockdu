@@ -108,7 +108,7 @@ Relevant fields:
 - "prune would NOT free" = sum of Size where `Shared || InUse`. Pruning a shared record only deletes metadata; the bytes stay with the image.
 - An estimate of freed space is not a guarantee: physical space inside a Docker Desktop VM file is only returned when Desktop compacts it.
 - Source for the engine rule: moby `daemon/internal/builder-next/builder.go`, `Builder.DiskUsage` counts a record as reclaimable only when `!InUse && !Shared`. Invariant to assert in tests: `Reclaimable + Σ Size(Shared || InUse) == TotalSize`.
-- Do not rely on `CacheRecord.Parents`: its json tag in api v1.56.1 is `" Parents"` (leading space) and never decodes.
+- `CacheRecord.Parents` carries an odd json tag (`" Parents"`, leading space) in api v1.56.1; it did decode on engine 29.2 in the recorded fixture, but dockdu does not use the field.
 - Suggested command for reclaimable private cache: `docker builder prune --filter until=168h`. For everything unused: `docker builder prune -a`.
 
 ### 6.5 Container log files

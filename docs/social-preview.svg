@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+<title id="title">dockdu — disk space, accounted for</title>
+<desc id="desc">dockdu reveals Docker disk usage, including space not shown by df. Three stacked storage rows expose their unreported segments in cyan.</desc>
+<g font-family="ui-sans-serif, system-ui, -apple-system, &quot;Segoe UI&quot;, Inter, sans-serif">
+<rect width="1280" height="640" fill="#141E27"/>
+<g transform="translate(72 68) scale(0.75)">
+ <rect width="256" height="256" rx="48" fill="#141E27"/>
+ <g fill="#EAF1F4"><rect x="48" y="56" width="120" height="32" rx="4"/><rect x="48" y="112" width="80" height="32" rx="4"/><rect x="48" y="168" width="120" height="32" rx="4"/></g>
+ <g fill="#36B6C5"><rect x="184" y="56" width="24" height="32" rx="4"/><rect x="144" y="112" width="64" height="32" rx="4"/><rect x="184" y="168" width="24" height="32" rx="4"/></g>
+ </g>
+<text x="308" y="202" font-size="112" font-weight="750" letter-spacing="-5" fill="#EAF1F4">dockdu</text>
+<text x="80" y="325" font-size="32" fill="#B4C4CE"><tspan x="80">Find out where Docker's disk space actually went —</tspan><tspan x="80" dy="44"> and what prune won't give back.</tspan></text>
+<g transform="translate(80 421)"><rect width="1120" height="48" rx="8" fill="#202F3B"/><rect x="6" y="6" width="370" height="36" rx="3" fill="#455C6B"/><rect x="380" y="6" width="240" height="36" rx="3" fill="#627A89"/><rect x="625" y="6" width="280" height="36" rx="3" fill="#193D48"/><path d="M626 13V35" stroke="#36B6C5" stroke-width="3"/><text x="765" y="30" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, &quot;Liberation Mono&quot;, monospace" font-size="20" fill="#36B6C5">not shown by df</text></g>
+<text x="80" y="551" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, &quot;Liberation Mono&quot;, monospace" font-size="28" fill="#36B6C5">brew install maximilianfeix/tap/dockdu</text>
+</g>
+</svg>

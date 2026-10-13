@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+<title id="title">dockdu — dark banner</title>
+<desc id="desc">dockdu reveals Docker disk usage, including space not shown by df. Three stacked storage rows expose their unreported segments in cyan.</desc>
+<g font-family="ui-sans-serif, system-ui, -apple-system, &quot;Segoe UI&quot;, Inter, sans-serif">
+<rect width="1200" height="300" fill="#141E27"/>
+<g transform="translate(40 42) scale(0.625)">
+ <rect width="256" height="256" rx="48" fill="#141E27"/>
+ <g fill="#EAF1F4"><rect x="48" y="56" width="120" height="32" rx="4"/><rect x="48" y="112" width="80" height="32" rx="4"/><rect x="48" y="168" width="120" height="32" rx="4"/></g>
+ <g fill="#36B6C5"><rect x="184" y="56" width="24" height="32" rx="4"/><rect x="144" y="112" width="64" height="32" rx="4"/><rect x="184" y="168" width="24" height="32" rx="4"/></g>
+ </g>
+<text x="232" y="109" font-size="70" font-weight="750" letter-spacing="-3" fill="#EAF1F4">dockdu</text>
+<text x="234" y="150" font-size="22" fill="#B4C4CE"><tspan x="234">Find out where Docker's disk space actually went —</tspan><tspan x="234" dy="30"> and what prune won't give back.</tspan></text>
+<rect x="234" y="216" width="916" height="48" rx="8" fill="#202F3B"/>
+<rect x="240" y="222" width="280" height="36" rx="3" fill="#455C6B"/>
+<rect x="524" y="222" width="174" height="36" rx="3" fill="#627A89"/>
+<rect x="703" y="222" width="250" height="36" rx="3" fill="#193D48"/>
+<path d="M704 229V251" stroke="#36B6C5" stroke-width="3"/>
+<text x="828" y="245" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, &quot;Liberation Mono&quot;, monospace" font-size="18" fill="#36B6C5">not shown by df</text>
+</g>
+</svg>
