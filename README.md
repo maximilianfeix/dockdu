@@ -36,7 +36,7 @@ brew install maximilianfeix/tap/dockdu     # macOS and Linux
 dockdu                                     # one read-only run, exit 0 when complete
 ```
 
-On Docker Desktop the log files live inside the VM, so run the same thing as a container to see them:
+On Docker Desktop the log files live inside the VM, so a host run ends with exit code 2 and lists the logs as unmeasured. That is expected, not an error; run the same thing as a container to see them:
 
 ```bash
 docker run --rm \
