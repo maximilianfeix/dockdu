@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 7 (release candidate) in progress on branch `phase-7-release`: GoReleaser config validated with 2.18.3, snapshot builds four archives and the ghcr image for amd64 and arm64 on the project builder `dockdu-builder`, README with banner and demo, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, CodeQL, Scorecard, Dependabot, CI integration job.
+Phase 7 (release candidate) complete on branch `phase-7-release` (PR #13, CI green incl. integration and CodeQL). All nine SPEC §9 criteria pass locally; evidence in `docs/verification/acceptance-2026-10-13.md`. Nothing is tagged or published.
 
 ## Done
 
@@ -50,4 +50,4 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 
 ## Next executable step
 
-Phase 6 on branch `phase-6-render`: `internal/report/text.go` (tabwriter layout from SPEC §7), `json.go`, `internal/collect/desktop_darwin.go` behind a build tag, exit codes 0/1/2, `--json`, `--top`, `--data-root`, `--no-desktop`, golden tests for the text output, `cmd/dockdu` wiring.
+Release (needs the owner): add the repository secret `HOMEBREW_TAP_GITHUB_TOKEN` (contents:write on maximilianfeix/homebrew-tap), then `git tag v0.1.0 && git push origin v0.1.0`; the release workflow builds archives, the cask and the ghcr image and opens a draft GitHub release to publish by hand. After that: `brew install maximilianfeix/tap/dockdu` and `docker run … ghcr.io/maximilianfeix/dockdu` are the two acceptance checks that could not run before publishing. Optional: upload `docs/social-preview.svg` (as PNG) under Settings → Social preview.
