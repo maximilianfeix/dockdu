@@ -140,3 +140,16 @@ func mustWrite(t *testing.T, path string, n int) {
 		t.Fatal(err)
 	}
 }
+
+func TestEffectiveVersionFallsBackToBuildInfo(t *testing.T) {
+	// In `go test` the main module version is "(devel)" or empty, so the
+	// ldflags default must survive unchanged.
+	if got := effectiveVersion(); got != "dev" {
+		t.Fatalf("effectiveVersion() = %q, want %q under go test", got, "dev")
+	}
+	version = "1.2.3"
+	t.Cleanup(func() { version = "dev" })
+	if got := effectiveVersion(); got != "1.2.3" {
+		t.Fatalf("ldflags version must win, got %q", got)
+	}
+}

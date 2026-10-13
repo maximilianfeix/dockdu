@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/maximilianfeix/dockdu/internal/collect"
@@ -17,8 +19,22 @@ import (
 	"github.com/maximilianfeix/dockdu/internal/report"
 )
 
-// version is set at build time with -ldflags "-X main.version=...".
+// version is set at build time with -ldflags "-X main.version=...". Builds
+// made with `go install module@vX.Y.Z` carry no ldflags; effectiveVersion
+// falls back to the module version Go records in the binary.
 var version = "dev"
+
+func effectiveVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		if v := bi.Main.Version; v != "" && v != "(devel)" {
+			return strings.TrimPrefix(v, "v")
+		}
+	}
+	return version
+}
 
 // exitUsage is EX_USAGE from sysexits; distinct from 2 (report with warnings).
 const exitUsage = 64
@@ -73,7 +89,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	if *showVersion {
-		fmt.Fprintf(stdout, "dockdu %s\n", version)
+		fmt.Fprintf(stdout, "dockdu %s\n", effectiveVersion())
 		return 0
 	}
 	// Development helper: record a sanitised snapshot as a test fixture.
@@ -105,7 +121,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 // render builds and writes the report; split from run so tests can feed a
 // fixture snapshot through the same path.
 func render(snap *engine.Snapshot, dataRoot string, desktop, asJSON bool, top int, stdout, stderr io.Writer) int {
-	rep := collect.Build(snap, dataRoot, time.Now(), version)
+	rep := collect.Build(snap, dataRoot, time.Now(), effectiveVersion())
 	if desktop && runtime.GOOS == "darwin" {
 		home, err := os.UserHomeDir()
 		if err != nil {
