@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 1 (project skeleton) complete on branch `phase-1-skeleton` (issue #3). Next: Phase 2 (engine wrapper, usage collector, report model).
+Phase 2 (engine wrapper, usage collector, report model) complete on branch `phase-2-engine`. Next: Phase 3 (build cache and images).
 
 ## Done
 
@@ -12,6 +12,7 @@ Phase 1 (project skeleton) complete on branch `phase-1-skeleton` (issue #3). Nex
 - 2026-10-13: Toolchain installed: Go 1.27.2, GoReleaser 2.18.3. Docker Desktop (engine 29.2.0, API 1.53) running.
 - 2026-10-13: Phase 0 spike answered in `docs/SPIKE.md` (Q1–Q5 plus `local` driver and Desktop VM file).
 - 2026-10-13: Phase 1 skeleton: go.mod (`go 1.26`), `cmd/dockdu` with `--help`/`--version` and tests, Makefile (lint fails on unformatted files), .gitignore, MIT LICENSE, README stub, CI workflow. `make check` green locally.
+- 2026-10-13: Phase 2: `internal/engine` (Snapshot model, Moby implementation using Info + DiskUsage + ContainerInspect only, Static engine, fixture load/write with no-overwrite, Sanitize), `internal/report/model.go`, `internal/collect/usage.go` (df totals and summary), fixture `internal/collect/testdata/desktop-29.2.json` recorded from this machine via `DOCKDU_RECORD_FIXTURE`. Tests green.
 
 ## Verified results (observed at runtime unless noted)
 
@@ -39,4 +40,4 @@ Containers with label `dockdu.test=1`: `dockdu-test-logs` (1f1412f2177f), `dockd
 
 ## Next executable step
 
-Open issue "Phase 2: engine wrapper and usage collector", branch `phase-2-engine`, add the two moby modules (`go get github.com/moby/moby/client@v0.6.2 github.com/moby/moby/api@v1.56.1`), create `internal/engine` (interface + moby implementation + fixture recorder), `internal/collect/usage.go`, `internal/report/model.go`, record one fixture set, unit tests from fixtures.
+Phase 3 on branch `phase-3-buildcache-images`: tests first for SPEC §6.4 (engine reclaimable, shared, private, not-freed-by-prune, duplicates, unknown values, empty) and §6.7 (dangling, unique bytes, -1 handling), then `internal/collect/buildcache.go`, `images.go`, `internal/report/suggest.go`.
