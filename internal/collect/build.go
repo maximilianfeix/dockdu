@@ -13,6 +13,10 @@ import (
 func Build(s *engine.Snapshot, dataRoot string, now time.Time, version string) *report.Report {
 	r := &report.Report{Version: version, TakenAt: s.TakenAt, Daemon: Daemon(s), Warnings: []string{}}
 	r.Warnings = append(r.Warnings, s.Warnings...)
+	if dataRoot != "" && dataRoot != r.Daemon.DataRoot {
+		r.Daemon.ReportedDataRoot = r.Daemon.DataRoot
+		r.Daemon.DataRoot = dataRoot
+	}
 
 	var w []string
 	r.BuildCache, w = BuildCache(s)

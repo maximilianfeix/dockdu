@@ -104,8 +104,8 @@ func TestLogsMissingDirIsUnmeasuredNotZero(t *testing.T) {
 	s := &engine.Snapshot{Containers: []engine.Container{{ID: "bbbbbbbbbbbb", Name: "gone", LogDriver: "json-file"}}}
 	got, warns := Logs(s, root)
 	it := got.Items[0]
-	if it.Measured || it.Note == "" || got.Complete || got.TotalBytes != 0 {
-		t.Fatalf("unmeasured container must be flagged, got item=%+v complete=%v", it, got.Complete)
+	if it.Measured || it.Note == "" || got.Complete || got.TotalBytes != 0 || it.Bytes != -1 {
+		t.Fatalf("unmeasured container must be flagged with bytes -1, got item=%+v complete=%v", it, got.Complete)
 	}
 	if len(warns) != 1 {
 		t.Fatalf("one warning expected, got %v", warns)

@@ -3,6 +3,9 @@
 package collect
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -20,16 +23,21 @@ func Desktop(home string, dockerReported int64) (*report.Desktop, []string) {
 		{"Docker Desktop", filepath.Join(home, "Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw")},
 		{"OrbStack", filepath.Join(home, "Library/Group Containers/HUAQ24HBR6.dev.orbstack/data/data.img")},
 	}
+	var warns []string
 	for _, c := range cands {
 		fi, err := os.Stat(c.path)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
 		if err != nil {
+			warns = append(warns, fmt.Sprintf("desktop: cannot stat %s: %v", c.path, err))
 			continue
 		}
 		allocated := int64(-1)
 		if st, ok := fi.Sys().(*syscall.Stat_t); ok {
 			allocated = st.Blocks * 512 // Blocks is in 512-byte units on macOS
 		}
-		return buildDesktop(c, fi.Size(), allocated, dockerReported), nil
+		return buildDesktop(c, fi.Size(), allocated, dockerReported), warns
 	}
-	return nil, nil
+	return nil, warns
 }

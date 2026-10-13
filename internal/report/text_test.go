@@ -25,11 +25,12 @@ func goldenReport() *Report {
 		Logs: Logs{TotalBytes: 51861225472, Complete: false, Items: []LogItem{
 			{ContainerID: "a", Name: "shop-web-1", Project: "shop", Driver: "json-file", Rotation: "unbounded", Bytes: 6657199104, Files: 1, Measured: true},
 			{ContainerID: "b", Name: "blog-worker-3", Project: "blog", Driver: "local", Rotation: "bounded", MaxSize: "20m (driver default)", MaxFile: "5 (driver default)", Bytes: 104857600, Files: 5, Measured: true},
-			{ContainerID: "c", Name: "loose", Driver: "json-file", Rotation: "unbounded", Measured: false, Note: "log directory not readable (run as root or inside the container image)"},
+			{ContainerID: "c", Name: "loose", Driver: "json-file", Rotation: "unbounded", Bytes: -1, Measured: false, Note: "log directory not readable (run as root or inside the container image)"},
 		}, Suggestions: []string{SuggestLogOptsDaemon}},
-		Projects: Projects{TotalBytes: 40000000000, SharedImageBytes: 500000000, Items: []Project{
+		// TotalBytes = Σ items (23837068287 + 15073741824) + shared 500000000.
+		Projects: Projects{TotalBytes: 39410810111, SharedImageBytes: 500000000, Items: []Project{
 			{Name: "shop", Containers: 4, ImageBytes: 4187593113, SharedImageBytes: 500000000, ImagesShared: 1, VolumeBytes: 12992276070, LogBytes: 6657199104, TotalBytes: 23837068287},
-			{Name: "(none)", Containers: 2, ImageBytes: 1073741824, VolumeBytes: 14000000000, VolumesUnknown: 1, LogBytes: 0, TotalBytes: 15073741824, OrphanVolumes: 3, DanglingImages: 7, StoppedOld: 1},
+			{Name: "(none)", Containers: 2, ImageBytes: 1073741824, VolumeBytes: 14000000000, VolumesUnknown: 1, LogBytes: 0, LogsUnknown: 1, TotalBytes: 15073741824, OrphanVolumes: 3, DanglingImages: 7, StoppedOld: 1},
 		}, Suggestions: []string{}},
 		Images: Images{Count: 3, TotalBytes: 5368709120, Dangling: 1, DanglingBytes: 209715200, ReclaimableBytes: 1181116006, Items: []ImageItem{
 			{ID: "sha256:aaaaaaaaaaaaaaaa", Tags: []string{"shop:1", "shop:latest"}, Bytes: 4187593113, SharedBytes: 0, Containers: 2, UniqueBytes: -1, Projects: []string{"shop"}},
@@ -97,5 +98,26 @@ func TestWriteJSONListsAreNeverNull(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), `"warnings": null`) {
 		t.Fatalf("warnings must serialise as []: %s", buf.String())
+	}
+}
+
+func TestWriteTextNeutralisesControlCharacters(t *testing.T) {
+	r := goldenReport()
+	r.Projects.Items[0].Name = "shop\x1b[31mred"
+	r.Logs.Items[0].Name = "web\x07bell"
+	var buf bytes.Buffer
+	_ = WriteText(&buf, r, 0)
+	if strings.ContainsAny(buf.String(), "\x1b\x07") {
+		t.Fatalf("control characters from the daemon reached the terminal")
+	}
+}
+
+func TestWriteTextHasNoTrailingSpaces(t *testing.T) {
+	var buf bytes.Buffer
+	_ = WriteText(&buf, goldenReport(), 0)
+	for i, l := range strings.Split(buf.String(), "\n") {
+		if strings.HasSuffix(l, " ") {
+			t.Fatalf("line %d has trailing spaces: %q", i+1, l)
+		}
 	}
 }

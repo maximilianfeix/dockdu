@@ -55,7 +55,7 @@ dockdu [flags]
   --version           print version and exit
   --help
 
-Exit codes: 0 report complete · 1 cannot reach the Docker daemon · 2 report rendered with warnings
+Exit codes: 0 report complete · 1 cannot reach the Docker daemon · 2 report rendered with warnings · 64 usage error (EX_USAGE)
 Honours DOCKER_HOST, DOCKER_CERT_PATH, DOCKER_TLS_VERIFY, DOCKER_API_VERSION via client.FromEnv.
 ```
 

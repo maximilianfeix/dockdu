@@ -44,7 +44,7 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 	unbounded := false
 
 	for _, c := range s.Containers {
-		it := report.LogItem{ContainerID: c.ID, Name: c.Name, Project: c.Labels[composeProjectLabel], Driver: c.LogDriver}
+		it := report.LogItem{ContainerID: c.ID, Name: c.Name, Project: c.Labels[composeProjectLabel], Driver: c.LogDriver, Bytes: -1}
 		switch {
 		case c.InspectError != "":
 			it.Rotation = "unknown"

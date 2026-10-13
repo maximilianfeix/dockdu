@@ -20,13 +20,16 @@ import (
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
 
+// exitUsage is EX_USAGE from sysexits; distinct from 2 (report with warnings).
+const exitUsage = 64
+
 const usageText = `dockdu explains where Docker's disk space went and what prune would NOT give back.
 It is read-only: nothing is removed, stopped or pruned.
 
 Usage:
   dockdu [flags]
 
-Exit codes: 0 report complete · 1 cannot reach the Docker daemon · 2 report has warnings
+Exit codes: 0 report complete · 1 cannot reach the Docker daemon · 2 report has warnings · 64 usage error
 
 Flags:
 `
@@ -37,8 +40,8 @@ func main() {
 
 // run parses args and returns the process exit code.
 // Exit codes follow SPEC.md §5: 0 report complete, 1 daemon unreachable,
-// 2 report rendered with warnings. Usage errors also exit 2 (Go flag
-// convention; not defined by the spec).
+// 2 report rendered with warnings, 64 usage error (EX_USAGE), so a script
+// can tell a typo from a degraded report.
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("dockdu", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -62,12 +65,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 0
 		}
 		usage(stderr) // flag already printed the error line
-		return 2
+		return exitUsage
 	}
 	if fs.NArg() > 0 {
 		fmt.Fprintf(stderr, "dockdu: unexpected argument %q\n", fs.Arg(0))
 		usage(stderr)
-		return 2
+		return exitUsage
 	}
 	if *showVersion {
 		fmt.Fprintf(stdout, "dockdu %s\n", version)
@@ -104,10 +107,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 func render(snap *engine.Snapshot, dataRoot string, desktop, asJSON bool, top int, stdout, stderr io.Writer) int {
 	rep := collect.Build(snap, dataRoot, time.Now(), version)
 	if desktop && runtime.GOOS == "darwin" {
-		home, _ := os.UserHomeDir()
-		d, w := collect.Desktop(home, rep.Summary.DockerBytesTotal)
-		rep.Desktop = d
-		rep.Warnings = append(rep.Warnings, w...)
+		home, err := os.UserHomeDir()
+		if err != nil {
+			rep.Warnings = append(rep.Warnings, "desktop: home directory unknown: "+err.Error())
+		} else {
+			d, w := collect.Desktop(home, rep.Summary.DockerBytesTotal)
+			rep.Desktop = d
+			rep.Warnings = append(rep.Warnings, w...)
+		}
 	}
 	var err error
 	if asJSON {

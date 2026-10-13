@@ -5,7 +5,19 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
+	"unicode"
 )
+
+// safe replaces control characters in daemon-sourced strings so a crafted
+// label or name cannot inject terminal escape sequences into the report.
+func safe(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return '?'
+		}
+		return r
+	}, s)
+}
 
 // WriteText renders the human-readable report (SPEC §7). top limits the rows
 // of each list; 0 means all. Nothing here is coloured.
@@ -24,7 +36,11 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		return top, fmt.Sprintf("top %d of %d", top, n)
 	}
 
-	p("dockdu %s · docker %s (API %s) · %s · data root %s\n\n", r.Version, r.Daemon.ServerVersion, r.Daemon.APIVersion, r.Daemon.OperatingSystem, r.Daemon.DataRoot)
+	root := safe(r.Daemon.DataRoot)
+	if r.Daemon.ReportedDataRoot != "" {
+		root += " (daemon reports " + safe(r.Daemon.ReportedDataRoot) + ")"
+	}
+	p("dockdu %s · docker %s (API %s) · %s · data root %s\n\n", r.Version, safe(r.Daemon.ServerVersion), safe(r.Daemon.APIVersion), safe(r.Daemon.OperatingSystem), root)
 
 	s := r.Summary
 	p("SUMMARY\n")
@@ -35,7 +51,11 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		logNote += " · incomplete, lower bound (see CONTAINER LOGS)"
 	}
 	p("  container logs on disk      %-11s %s\n", Bytes(s.LogBytes), logNote)
-	p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes))
+	totalNote := ""
+	if !s.LogBytesComplete {
+		totalNote = " (lower bound: logs incomplete)"
+	}
+	p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
 	sug(s.Suggestions)
 
 	bc := r.BuildCache
@@ -56,9 +76,12 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  CONTAINER\tPROJECT\tDRIVER\tSIZE\tFILES\tROTATION\tNOTE")
 		for _, it := range lg.Items[:n] {
-			size, files := Bytes(it.Bytes), fmt.Sprint(it.Files)
+			size, files, note := Bytes(it.Bytes), fmt.Sprint(it.Files), safe(it.Note)
 			if !it.Measured {
 				size, files = "unmeasured", "-"
+				if it.Rotation != "not on disk" {
+					note = "not measured, see WARNINGS"
+				}
 			}
 			rot := it.Rotation
 			if it.Rotation == "bounded" && it.MaxSize != "" {
@@ -71,7 +94,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 					rot += " (driver defaults)"
 				}
 			}
-			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\n", it.Name, orDash(it.Project), it.Driver, size, files, rot, it.Note)
+			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\n", safe(it.Name), orDash(safe(it.Project)), safe(it.Driver), size, files, rot, note)
 		}
 		tw.Flush()
 	}
@@ -96,12 +119,16 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			if it.VolumesUnknown > 0 {
 				notes = append(notes, fmt.Sprintf("%d volume size(s) unknown", it.VolumesUnknown))
 			}
+			logs := Bytes(it.LogBytes)
+			if it.LogsUnknown > 0 {
+				logs += fmt.Sprintf(" (%d unmeasured)", it.LogsUnknown)
+			}
 			shared := "-"
 			if it.ImagesShared > 0 {
 				shared = fmt.Sprintf("+%s (%d)", Bytes(it.SharedImageBytes), it.ImagesShared)
 			}
-			fmt.Fprintf(tw, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n", it.Name, it.Containers, Bytes(it.ImageBytes), shared,
-				Bytes(it.VolumeBytes), Bytes(it.LogBytes), Bytes(it.TotalBytes), strings.Join(notes, ", "))
+			fmt.Fprintf(tw, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n", safe(it.Name), it.Containers, Bytes(it.ImageBytes), shared,
+				Bytes(it.VolumeBytes), logs, Bytes(it.TotalBytes), strings.Join(notes, ", "))
 		}
 		tw.Flush()
 	}
@@ -116,7 +143,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		for _, it := range im.Items[:n] {
 			name := shortID(it.ID)
 			if len(it.Tags) > 0 && !it.Dangling {
-				name = it.Tags[0]
+				name = safe(it.Tags[0])
 				if len(it.Tags) > 1 {
 					name += fmt.Sprintf(" (+%d)", len(it.Tags)-1)
 				}
@@ -127,7 +154,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			if it.Containers < 0 {
 				containers = "unknown"
 			}
-			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", name, Bytes(it.Bytes), Bytes(it.SharedBytes), Bytes(it.UniqueBytes), containers, orDash(strings.Join(it.Projects, ",")))
+			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", name, Bytes(it.Bytes), Bytes(it.SharedBytes), Bytes(it.UniqueBytes), containers, orDash(safe(strings.Join(it.Projects, ","))))
 		}
 		tw.Flush()
 	}
@@ -148,7 +175,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			if it.Orphan {
 				state = "orphan (unreferenced, not from compose)"
 			}
-			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", it.Name, orDash(it.Project), it.Driver, Bytes(it.Bytes), refs, state)
+			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", safe(it.Name), orDash(safe(it.Project)), safe(it.Driver), Bytes(it.Bytes), refs, state)
 		}
 		tw.Flush()
 	}
@@ -165,11 +192,17 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if len(r.Warnings) > 0 {
 		p("\nWARNINGS\n")
 		for _, wn := range r.Warnings {
-			p("  - %s\n", wn)
+			p("  - %s\n", safe(wn))
 		}
 	}
 	p("\ndockdu never deletes anything. Every → line is a suggestion for you to run.\n")
-	_, err := io.WriteString(w, b.String())
+	// tabwriter pads empty trailing cells; strip the padding so the output
+	// (and the golden file) has no trailing spaces.
+	lines := strings.Split(b.String(), "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " ")
+	}
+	_, err := io.WriteString(w, strings.Join(lines, "\n"))
 	return err
 }
 

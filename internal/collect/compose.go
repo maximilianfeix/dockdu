@@ -131,12 +131,15 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 	}
 
 	for _, it := range logs.Items {
-		if !it.Measured {
-			continue
-		}
 		name := it.Project
 		if name == "" {
 			name = noneProject
+		}
+		if !it.Measured {
+			if it.Rotation != "not on disk" {
+				row(name).LogsUnknown++
+			}
+			continue
 		}
 		row(name).LogBytes += it.Bytes
 	}
