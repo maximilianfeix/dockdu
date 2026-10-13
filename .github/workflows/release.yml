@@ -19,6 +19,24 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      # Fail before anything is published when the tap token cannot write to
+      # the Homebrew tap. The probe is a PUT without a content field: GitHub
+      # answers 403/404 when the token lacks access and 422 (validation)
+      # when it has write permission. Nothing is written either way.
+      - name: preflight, tap token can write to maximilianfeix/homebrew-tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          test -n "$TAP_TOKEN" || { echo "::error::HOMEBREW_TAP_GITHUB_TOKEN is not set"; exit 1; }
+          code=$(curl -s -o /tmp/preflight.json -w '%{http_code}' -X PUT \
+            -H "Authorization: Bearer $TAP_TOKEN" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/maximilianfeix/homebrew-tap/contents/Casks/.preflight \
+            -d '{"message":"preflight"}')
+          if [ "$code" != "422" ]; then
+            echo "::error::tap token cannot write to maximilianfeix/homebrew-tap (HTTP $code): $(jq -r .message /tmp/preflight.json 2>/dev/null)"
+            exit 1
+          fi
+          echo "tap token has write access (validation error as expected, nothing written)"
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
