@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 2 (engine wrapper, usage collector, report model) complete on branch `phase-2-engine`. Next: Phase 3 (build cache and images).
+Phase 3 (build cache and image rules) complete on branch `phase-3-buildcache-images` (issue #5). Next: Phase 4 (logs).
 
 ## Done
 
@@ -13,6 +13,7 @@ Phase 2 (engine wrapper, usage collector, report model) complete on branch `phas
 - 2026-10-13: Phase 0 spike answered in `docs/SPIKE.md` (Q1–Q5 plus `local` driver and Desktop VM file).
 - 2026-10-13: Phase 1 skeleton: go.mod (`go 1.26`), `cmd/dockdu` with `--help`/`--version` and tests, Makefile (lint fails on unformatted files), .gitignore, MIT LICENSE, README stub, CI workflow. `make check` green locally.
 - 2026-10-13: Phase 2: `internal/engine` (Snapshot model, Moby implementation using Info + DiskUsage + ContainerInspect only, Static engine, fixture load/write with no-overwrite, Sanitize), `internal/report/model.go`, `internal/collect/usage.go` (df totals and summary), fixture `internal/collect/testdata/desktop-29.2.json` recorded from this machine via `DOCKDU_RECORD_FIXTURE`. Tests green.
+- 2026-10-13: Phase 3: `internal/collect/buildcache.go` (engine reclaimable, shared, private, in-use, not-freed-by-prune, duplicate IDs counted once, total mismatch warned), `images.go` (dangling, unique bytes only when Containers==0 and SharedSize known, sorted by size), `internal/report/suggest.go` (no volume prune, ever). Tests written first; 18 tests green.
 
 ## Verified results (observed at runtime unless noted)
 
@@ -40,4 +41,4 @@ Containers with label `dockdu.test=1`: `dockdu-test-logs` (1f1412f2177f), `dockd
 
 ## Next executable step
 
-Phase 3 on branch `phase-3-buildcache-images`: tests first for SPEC §6.4 (engine reclaimable, shared, private, not-freed-by-prune, duplicates, unknown values, empty) and §6.7 (dangling, unique bytes, -1 handling), then `internal/collect/buildcache.go`, `images.go`, `internal/report/suggest.go`.
+Phase 4 on branch `phase-4-logs`: tests first for json-file and local path derivation, rotated-file summing, rotation status, unreadable directory → unmeasured (not 0); then `internal/collect/logs.go` and the `DOCKDU_INTEGRATION=1` test from SPEC §9.4 using a container labelled `dockdu.test=1`.
