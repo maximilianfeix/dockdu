@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 4 (container log files) complete on branch `phase-4-logs` (issue #7). Next: Phase 5 (compose grouping and volumes).
+Phase 5 (compose grouping and volumes) complete on branch `phase-5-compose-volumes`. Next: Phase 6 (renderers, Desktop section, CLI wiring).
 
 ## Done
 
@@ -15,6 +15,7 @@ Phase 4 (container log files) complete on branch `phase-4-logs` (issue #7). Next
 - 2026-10-13: Phase 2: `internal/engine` (Snapshot model, Moby implementation using Info + DiskUsage + ContainerInspect only, Static engine, fixture load/write with no-overwrite, Sanitize), `internal/report/model.go`, `internal/collect/usage.go` (df totals and summary), fixture `internal/collect/testdata/desktop-29.2.json` recorded from this machine via `DOCKDU_RECORD_FIXTURE`. Tests green.
 - 2026-10-13: Phase 3: `internal/collect/buildcache.go` (engine reclaimable, shared, private, in-use, not-freed-by-prune, duplicate IDs counted once, total mismatch warned), `images.go` (dangling, unique bytes only when Containers==0 and SharedSize known, sorted by size), `internal/report/suggest.go` (no volume prune, ever). Tests written first; 18 tests green.
 - 2026-10-13: Phase 4: `internal/collect/logs.go` (json-file path from inspect or derived, local driver under local-logs/, rotated siblings summed, Lstat only, symlinks ignored, unreadable → unmeasured + incomplete, other drivers "not on disk"), 8 unit tests, integration test SPEC §9.4 creates its own `dockdu.test=1` container via the SDK and removes it by ID. `make integration` runs it inside golang:1.27 with the socket and `/var/lib/docker:ro` mounted: PASS, 3116 bytes in 3 files observed. On the macOS host the test skips (data root inside the VM).
+- 2026-10-13: Phase 5: `compose.go` (projects from the compose label, images attributed through container references, images used by several projects reported per project in SharedImageBytes and counted once at section level so project totals stay additive, dangling and unused images in the (none) bucket, stopped containers older than 7 days), `volumes.go` (referenced / unreferenced / unknown; orphan only when unreferenced and not compose-created; one `docker volume rm` hint per orphan, never bulk), `AttachImageProjects`. Tests first; all green.
 
 ## Verified results (observed at runtime unless noted)
 
@@ -42,4 +43,4 @@ Containers with label `dockdu.test=1`: `dockdu-test-logs` (1f1412f2177f), `dockd
 
 ## Next executable step
 
-Phase 5 on branch `phase-5-compose-volumes`: tests first for project grouping, shared images counted once, (none) bucket, orphan volumes, unknown sizes, stopped containers older than 7 days; then `compose.go` and `volumes.go`.
+Phase 6 on branch `phase-6-render`: `internal/report/text.go` (tabwriter layout from SPEC §7), `json.go`, `internal/collect/desktop_darwin.go` behind a build tag, exit codes 0/1/2, `--json`, `--top`, `--data-root`, `--no-desktop`, golden tests for the text output, `cmd/dockdu` wiring.
