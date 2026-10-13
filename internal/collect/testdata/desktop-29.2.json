@@ -1,0 +1,518 @@
+{
+  "taken_at": "2026-10-13T17:10:54.092446Z",
+  "daemon": {
+    "host": "unix:///var/run/docker.sock",
+    "server_version": "29.2.0",
+    "api_version": "1.53",
+    "operating_system": "Docker Desktop",
+    "storage_driver": "overlayfs",
+    "logging_driver": "json-file",
+    "data_root": "/var/lib/docker"
+  },
+  "totals": {
+    "images": {
+      "active_count": 1,
+      "total_count": 8,
+      "reclaimable": 1104559800,
+      "total_size": 3547066761
+    },
+    "containers": {
+      "active_count": 3,
+      "total_count": 3,
+      "reclaimable": 0,
+      "total_size": 12288
+    },
+    "volumes": {
+      "active_count": 0,
+      "total_count": 0,
+      "reclaimable": 0,
+      "total_size": 0
+    },
+    "build_cache": {
+      "active_count": 0,
+      "total_count": 26,
+      "reclaimable": 1118813063,
+      "total_size": 1546143746
+    }
+  },
+  "images": [
+    {
+      "id": "sha256:27bb79216327ff20f2e1cd6369d8903615cb64186e69615b69d619250787d6cf",
+      "repo_tags": [
+        "ghcr.io/maximilianfeix/proxy-scraper:1.25.0",
+        "ghcr.io/maximilianfeix/proxy-scraper:latest"
+      ],
+      "created": 1791236932,
+      "size": 358147029,
+      "shared_size": 167297024,
+      "containers": 0
+    },
+    {
+      "id": "sha256:aad83551e046e276706bc71e6a19ca872fc5c57e89576d7541e7497e53cd66a9",
+      "repo_tags": [
+        "proxy-scraper:test"
+      ],
+      "created": 1791230099,
+      "size": 358123252,
+      "shared_size": 167297024,
+      "containers": 0
+    },
+    {
+      "id": "sha256:666ded3860a99b33a9dbe262312248dd9dd29ffd10043304a6b0b91a0e39284b",
+      "repo_tags": [
+        "proxy-scraper:before"
+      ],
+      "created": 1791230063,
+      "size": 282804170,
+      "shared_size": 167297024,
+      "containers": 0
+    },
+    {
+      "id": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+      "repo_tags": [
+        "alpine:3.22"
+      ],
+      "created": 1789677450,
+      "size": 13415030,
+      "shared_size": 0,
+      "containers": 3
+    },
+    {
+      "id": "sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58",
+      "repo_tags": [
+        "ghcr.io/astral-sh/uv:python3.12-bookworm-slim"
+      ],
+      "created": 1770240632,
+      "size": 278307703,
+      "shared_size": 0,
+      "containers": 0
+    },
+    {
+      "id": "sha256:d2d2bc1c84f7e60d7d2438a3836ae7d0c847f4888464e7ec9ba3a1339a1ee804",
+      "repo_tags": [
+        "golang:1.24"
+      ],
+      "created": 1770224683,
+      "size": 1332004280,
+      "shared_size": 0,
+      "containers": 0
+    },
+    {
+      "id": "sha256:b50aa594cd940fa459144efa129dc21466f7d56d015993914f41f3eb983c893b",
+      "repo_tags": [
+        "ubuntu/nginx:latest"
+      ],
+      "created": 1763990108,
+      "size": 156678071,
+      "shared_size": 0,
+      "containers": 0
+    },
+    {
+      "id": "sha256:bf44cdfcb76cd3b41e879bc058fc37ec5872002ccfde7fcb765e218cde0cd79c",
+      "repo_tags": [
+        "python:3.13-slim"
+      ],
+      "created": 0,
+      "size": 178333528,
+      "shared_size": 0,
+      "containers": 0
+    }
+  ],
+  "containers": [
+    {
+      "id": "34b1d5c11f0415a5f9a28c2b9b08128f8e5671f07c5041b088e8fd39514e1c2e",
+      "name": "dockdu-test-local",
+      "image": "alpine:3.22",
+      "image_id": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+      "created": 1791910764,
+      "state": "running",
+      "status": "Up 11 minutes",
+      "size_rw": 4096,
+      "size_root_fs": 9228288,
+      "labels": {
+        "dockdu.test": "1"
+      },
+      "log_driver": "local",
+      "log_path": ""
+    },
+    {
+      "id": "871547ac7ec5f8c01acd304332b3716566039690ea073703204a6d8f3c1ca29d",
+      "name": "dockdu-test-default",
+      "image": "alpine:3.22",
+      "image_id": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+      "created": 1791910618,
+      "state": "running",
+      "status": "Up 13 minutes",
+      "size_rw": 4096,
+      "size_root_fs": 9228288,
+      "labels": {
+        "dockdu.test": "1"
+      },
+      "log_driver": "json-file",
+      "log_path": "/var/lib/docker/containers/871547ac7ec5f8c01acd304332b3716566039690ea073703204a6d8f3c1ca29d/871547ac7ec5f8c01acd304332b3716566039690ea073703204a6d8f3c1ca29d-json.log"
+    },
+    {
+      "id": "1f1412f2177f1838b0d6e8b7b91dfab5547324fdfc0a00a105e9acbf8c44fd87",
+      "name": "dockdu-test-logs",
+      "image": "alpine:3.22",
+      "image_id": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+      "created": 1791910618,
+      "state": "running",
+      "status": "Up 13 minutes",
+      "size_rw": 4096,
+      "size_root_fs": 9228288,
+      "labels": {
+        "dockdu.test": "1"
+      },
+      "log_driver": "json-file",
+      "log_opts": {
+        "max-file": "3",
+        "max-size": "1k"
+      },
+      "log_path": "/var/lib/docker/containers/1f1412f2177f1838b0d6e8b7b91dfab5547324fdfc0a00a105e9acbf8c44fd87/1f1412f2177f1838b0d6e8b7b91dfab5547324fdfc0a00a105e9acbf8c44fd87-json.log"
+    }
+  ],
+  "volumes": null,
+  "build_cache": [
+    {
+      "id": "mn5la5n1wtkod7k7fqlvmqp3q",
+      "parents": [
+        "ycll0yds2283ybyrbnicl7h1f"
+      ],
+      "type": "regular",
+      "description": "[stage-1 4/4] …",
+      "in_use": false,
+      "shared": true,
+      "size": 4128,
+      "created_at": "2026-10-05T19:54:59.629297751Z",
+      "last_used_at": "2026-10-05T19:55:01.962286711Z",
+      "usage_count": 1
+    },
+    {
+      "id": "3mzfzoyu57mfiaiotdkaaiir3",
+      "type": "frontend",
+      "description": "pulled …",
+      "in_use": false,
+      "shared": false,
+      "size": 40322885,
+      "created_at": "2026-10-05T19:54:08.354332547Z",
+      "last_used_at": "2026-10-05T19:55:01.963947669Z",
+      "usage_count": 2
+    },
+    {
+      "id": "tvh4o0qoz05cgkbr024d7tdmi",
+      "parents": [
+        "jx0q23mu5tm3uy4s6udn8hawc"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": false,
+      "size": 18923520,
+      "created_at": "2026-10-05T19:54:17.742962427Z",
+      "last_used_at": "2026-10-05T19:54:24.456301763Z",
+      "usage_count": 1
+    },
+    {
+      "id": "51jhfo7oyv7hecb4o1v56coy0",
+      "parents": [
+        "jb44ixo9ax8ymdzx3darf514d"
+      ],
+      "type": "regular",
+      "description": "[build 2/5] …",
+      "in_use": false,
+      "shared": false,
+      "size": 8192,
+      "created_at": "2026-10-05T19:54:17.69827201Z",
+      "last_used_at": "2026-10-05T19:54:24.448488097Z",
+      "usage_count": 1
+    },
+    {
+      "id": "ol8dxuuc9vbfmp76kcbqteanp",
+      "parents": [
+        "ry8t4ciqtt4y7jkk9r7az5iq1"
+      ],
+      "type": "regular",
+      "description": "[3/5] WORKDIR …",
+      "in_use": false,
+      "shared": false,
+      "size": 8284,
+      "created_at": "2026-10-08T12:51:17.072757086Z",
+      "last_used_at": "2026-10-08T12:51:41.639386542Z",
+      "usage_count": 1
+    },
+    {
+      "id": "2qg1gnip9wt6nnefidm857p59",
+      "type": "source.local",
+      "description": "local …",
+      "in_use": false,
+      "shared": false,
+      "size": 8192,
+      "created_at": "2026-10-05T19:54:11.351336549Z",
+      "last_used_at": "2026-10-05T19:55:01.965594127Z",
+      "usage_count": 2
+    },
+    {
+      "id": "nh67lrw02j0890214g7gyri9v",
+      "parents": [
+        "m802v8uv1pkldi9cgimbohnwy"
+      ],
+      "type": "regular",
+      "description": "pulled …",
+      "in_use": false,
+      "shared": true,
+      "size": 56704287,
+      "created_at": "2026-10-05T19:54:11.432865882Z",
+      "last_used_at": "2026-10-05T19:54:11.439844215Z",
+      "usage_count": 1
+    },
+    {
+      "id": "y2r92gmqkuyqhay6utbi2vtgc",
+      "parents": [
+        "jx0q23mu5tm3uy4s6udn8hawc"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": false,
+      "size": 28381184,
+      "created_at": "2026-10-05T19:54:48.791238136Z",
+      "last_used_at": "2026-10-05T19:55:01.967245336Z",
+      "usage_count": 1
+    },
+    {
+      "id": "v0j4cpbuvnl82i466yulgbvc7",
+      "type": "regular",
+      "description": "pulled …",
+      "in_use": false,
+      "shared": true,
+      "size": 139704443,
+      "created_at": "2026-10-05T19:54:11.425271715Z",
+      "last_used_at": "2026-10-05T19:54:11.429786215Z",
+      "usage_count": 1
+    },
+    {
+      "id": "fielyz96qxs2f9xq6gj9sm7zi",
+      "parents": [
+        "qhusdua1toov8gnk7ywqtiafh"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": false,
+      "size": 83303322,
+      "created_at": "2026-10-08T12:51:24.560989298Z",
+      "last_used_at": "2026-10-08T12:51:58.389216258Z",
+      "usage_count": 2
+    },
+    {
+      "id": "jx0q23mu5tm3uy4s6udn8hawc",
+      "parents": [
+        "yru98kmuppy6rrm82410zt86u"
+      ],
+      "type": "regular",
+      "description": "[build 4/5] …",
+      "in_use": false,
+      "shared": false,
+      "size": 2543616,
+      "created_at": "2026-10-05T19:54:17.73569826Z",
+      "last_used_at": "2026-10-05T19:55:01.966191794Z",
+      "usage_count": 2
+    },
+    {
+      "id": "rovpuu4db6f258p40bi0ih1wo",
+      "parents": [
+        "jb44ixo9ax8ymdzx3darf514d"
+      ],
+      "type": "regular",
+      "description": "[stage-1 2/4] …",
+      "in_use": false,
+      "shared": true,
+      "size": 13074378,
+      "created_at": "2026-10-05T19:54:21.634781512Z",
+      "last_used_at": "2026-10-05T19:54:24.457942305Z",
+      "usage_count": 1
+    },
+    {
+      "id": "o33y77wfrugjqamf4bk94vs9x",
+      "parents": [
+        "rovpuu4db6f258p40bi0ih1wo"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": true,
+      "size": 55849697,
+      "created_at": "2026-10-05T19:54:23.227190013Z",
+      "last_used_at": "2026-10-05T19:54:24.450553013Z",
+      "usage_count": 1
+    },
+    {
+      "id": "sinka3v2gi5vodwn3f6h7ydkh",
+      "type": "regular",
+      "description": "pulled …",
+      "in_use": false,
+      "shared": false,
+      "size": 139723226,
+      "created_at": "2026-10-08T12:50:42.782533751Z",
+      "last_used_at": "2026-10-08T12:51:41.637485875Z",
+      "usage_count": 1
+    },
+    {
+      "id": "dmnyt0skxycmazd1ygwejzgf1",
+      "type": "source.local",
+      "description": "local …",
+      "in_use": false,
+      "shared": false,
+      "size": 2609152,
+      "created_at": "2026-10-05T19:54:11.430517424Z",
+      "last_used_at": "2026-10-05T19:55:01.961143252Z",
+      "usage_count": 2
+    },
+    {
+      "id": "ml9jeeogrkwsp2mwk9l59yljp",
+      "parents": [
+        "jb44ixo9ax8ymdzx3darf514d"
+      ],
+      "type": "regular",
+      "description": "[stage-1 2/4] …",
+      "in_use": false,
+      "shared": true,
+      "size": 31791746,
+      "created_at": "2026-10-05T19:54:56.845533042Z",
+      "last_used_at": "2026-10-05T19:55:01.961684419Z",
+      "usage_count": 1
+    },
+    {
+      "id": "h6ipcth03z0ycfrjqy3xc1yp9",
+      "type": "source.local",
+      "description": "local …",
+      "in_use": false,
+      "shared": false,
+      "size": 8192,
+      "created_at": "2026-10-05T19:52:23.287348138Z",
+      "last_used_at": "2026-10-05T19:55:01.963526877Z",
+      "usage_count": 2
+    },
+    {
+      "id": "ry8t4ciqtt4y7jkk9r7az5iq1",
+      "parents": [
+        "sinka3v2gi5vodwn3f6h7ydkh"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": false,
+      "size": 789140172,
+      "created_at": "2026-10-08T12:51:16.927196086Z",
+      "last_used_at": "2026-10-08T12:51:41.638067042Z",
+      "usage_count": 1
+    },
+    {
+      "id": "ycll0yds2283ybyrbnicl7h1f",
+      "parents": [
+        "ml9jeeogrkwsp2mwk9l59yljp"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": true,
+      "size": 112451415,
+      "created_at": "2026-10-05T19:54:59.60047196Z",
+      "last_used_at": "2026-10-05T19:55:01.966527211Z",
+      "usage_count": 1
+    },
+    {
+      "id": "jb44ixo9ax8ymdzx3darf514d",
+      "parents": [
+        "nh67lrw02j0890214g7gyri9v"
+      ],
+      "type": "regular",
+      "description": "pulled …",
+      "in_use": false,
+      "shared": true,
+      "size": 16632,
+      "created_at": "2026-10-05T19:54:11.437979757Z",
+      "last_used_at": "2026-10-05T19:55:01.960250794Z",
+      "usage_count": 2
+    },
+    {
+      "id": "m802v8uv1pkldi9cgimbohnwy",
+      "parents": [
+        "v0j4cpbuvnl82i466yulgbvc7"
+      ],
+      "type": "regular",
+      "description": "pulled …",
+      "in_use": false,
+      "shared": true,
+      "size": 17729829,
+      "created_at": "2026-10-05T19:54:11.42839609Z",
+      "last_used_at": "2026-10-05T19:54:11.434543132Z",
+      "usage_count": 1
+    },
+    {
+      "id": "540o4bbfea51uudfgfs6vxsla",
+      "parents": [
+        "o33y77wfrugjqamf4bk94vs9x"
+      ],
+      "type": "regular",
+      "description": "[stage-1 4/4] …",
+      "in_use": false,
+      "shared": true,
+      "size": 4128,
+      "created_at": "2026-10-05T19:54:23.246848013Z",
+      "last_used_at": "2026-10-05T19:54:24.451029763Z",
+      "usage_count": 1
+    },
+    {
+      "id": "qhusdua1toov8gnk7ywqtiafh",
+      "parents": [
+        "ol8dxuuc9vbfmp76kcbqteanp"
+      ],
+      "type": "regular",
+      "description": "mount …",
+      "in_use": false,
+      "shared": false,
+      "size": 13743014,
+      "created_at": "2026-10-08T12:51:18.998654295Z",
+      "last_used_at": "2026-10-08T12:51:41.639657292Z",
+      "usage_count": 1
+    },
+    {
+      "id": "h6elfr8eao0ahxmdsj1kb2gol",
+      "type": "source.local",
+      "description": "local …",
+      "in_use": false,
+      "shared": false,
+      "size": 8192,
+      "created_at": "2026-10-08T12:50:40.847603667Z",
+      "last_used_at": "2026-10-08T12:51:58.39192655Z",
+      "usage_count": 2
+    },
+    {
+      "id": "gmy2jb18ajurxk5pksjk4q2b3",
+      "type": "source.local",
+      "description": "local …",
+      "in_use": false,
+      "shared": false,
+      "size": 4096,
+      "created_at": "2026-10-08T12:50:42.747823626Z",
+      "last_used_at": "2026-10-08T12:51:58.386794008Z",
+      "usage_count": 2
+    },
+    {
+      "id": "yru98kmuppy6rrm82410zt86u",
+      "parents": [
+        "51jhfo7oyv7hecb4o1v56coy0"
+      ],
+      "type": "regular",
+      "description": "[build 3/5] …",
+      "in_use": false,
+      "shared": false,
+      "size": 77824,
+      "created_at": "2026-10-05T19:54:17.716993052Z",
+      "last_used_at": "2026-10-05T19:54:24.449439388Z",
+      "usage_count": 1
+    }
+  ]
+}

@@ -3,11 +3,15 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"time"
+
+	"github.com/maximilianfeix/dockdu/internal/engine"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -60,6 +64,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "dockdu %s\n", version)
 		return 0
 	}
-	fmt.Fprintln(stderr, "dockdu: the report is not implemented yet (phase 1 skeleton); run with --help")
+	// Development helper: record a sanitised snapshot as a test fixture.
+	// Not a user-facing flag; it never overwrites an existing file.
+	if path := os.Getenv("DOCKDU_RECORD_FIXTURE"); path != "" {
+		return recordFixture(path, stderr)
+	}
+	fmt.Fprintln(stderr, "dockdu: the report is not implemented yet (phase 2); run with --help")
 	return 2
+}
+
+func recordFixture(path string, stderr io.Writer) int {
+	eng, err := engine.NewMoby()
+	if err != nil {
+		fmt.Fprintf(stderr, "dockdu: %v\n", err)
+		return 1
+	}
+	defer eng.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	if err := engine.Record(ctx, eng, path, false); err != nil {
+		if errors.Is(err, engine.ErrDaemonUnreachable) {
+			fmt.Fprintf(stderr, "dockdu: cannot reach the Docker daemon at %s: %v\n", eng.Host(), err)
+			return 1
+		}
+		fmt.Fprintf(stderr, "dockdu: record fixture: %v\n", err)
+		return 2
+	}
+	fmt.Fprintf(stderr, "dockdu: fixture written to %s\n", path)
+	return 0
 }
