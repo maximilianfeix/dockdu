@@ -14,7 +14,7 @@ Date: 2026-10-13. Every item below was run on this machine unless marked NOT RUN
 | Context / endpoint | `desktop-linux`, `unix:///Users/<user>/.docker/run/docker.sock` | `docker context inspect --format '{{.Endpoints.docker.Host}}'` |
 | Daemon | Docker Desktop, aarch64, storage driver `overlayfs`, containerd snapshotter enabled, logging driver `json-file`, data root `/var/lib/docker` | `docker info` |
 | daemon.json | only `builder.gc` (`defaultKeepStorage: 20GB`) and `experimental: false`; no `log-driver`, no `log-opts` | `cat ~/.docker/daemon.json` |
-| Desktop settings | `DiskSizeMiB: null` (default), `UseContainerdSnapshotter: true`, Enhanced Container Isolation not set | `settings-store.json` (read only) |
+| Desktop settings | `UseContainerdSnapshotter: true`; `DiskSizeMiB` and Enhanced Container Isolation keys absent (defaults) | `settings-store.json` (read only) |
 | vhs / ttyd / ffmpeg / jq / gh | present, gh logged in as the repo owner | `which`, `gh auth status` |
 
 Go 1.27.2 satisfies the spec's minimum of 1.26; `go.mod` will declare `go 1.26`.
@@ -50,7 +50,7 @@ drwx--x---    5 root  root  4096 Oct 13 16:57 /var/lib/docker/containers
 
 Conclusion: the mount resolves inside the Desktop VM. The current log file and its rotated siblings `.1`, `.2` are listable and their sizes readable as root inside the container. Rotation with `max-size=1k max-file=3` produced exactly three files. The buildkit directory is present.
 
-Second observation, same mount: with the containerd snapshotter enabled, `/var/lib/docker/overlay2` and `/var/lib/docker/image` do not exist (`du: No such file or directory`). `du -sx /var/lib/docker` is 1.5 MiB and `/var/lib/containerd` is 4 KiB while `docker system df` reports 3.5 GB of images. Image bytes live elsewhere in the VM. `df -h /var/lib/docker` inside the VM shows `/dev/vda1 223.6G total, 4.5G used`.
+Second observation, same mount, on this machine: `/var/lib/docker/overlay2` and `/var/lib/docker/image` do not exist (`du: No such file or directory`). `du -sx /var/lib/docker` is 1.5 MiB and `/var/lib/containerd` is 4 KiB while `docker system df` reports 3.5 GB of images. Where the image bytes live was not determined (`-x` does not cross mount points, so a sub-mount under the data root would be invisible to this check). `df -h /var/lib/docker` inside the VM shows `/dev/vda1 223.6G total, 4.5G used`.
 
 Remaining uncertainty: tested on one Docker Desktop version (29.2.0 engine, containerd snapshotter on). With Enhanced Container Isolation enabled, Docker documents that host-namespace sharing and socket mounts are restricted; not tested here. The ghcr image runs as root inside the container, which is why the `root:root 0640` log files are readable; a non-root image would not read them.
 
@@ -86,7 +86,7 @@ driver=local cfg={} logpath=[]
 
 Inside the VM (read-only mount): `/var/lib/docker/containers/<id>/local-logs/container.log` (2740 bytes), directory mode `0700`.
 
-Conclusion: confirmed at runtime. `LogPath` is empty for `local`; dockdu derives `<data-root>/containers/<id>/local-logs/container.log` and sums `container.log*` in that directory. The empty `cfg={}` means the driver's built-in defaults apply.
+Conclusion: observed at runtime: `LogPath` is empty for `local` and the file is `<data-root>/containers/<id>/local-logs/container.log`; dockdu sums `container.log*` in that directory. Not observed (docs only, docs.docker.com/engine/logging/drivers/local/): the rotated naming `container.log.1.gz` and the defaults 20m × 5 files, compressed; the test file stayed at 2740 bytes without rotating.
 
 ## Q3. Concrete Go type of DiskUsageResult.BuildCache.Items
 
@@ -125,7 +125,7 @@ func (cli *Client) DaemonHost() string
 
 Type fields confirmed with `go doc`: `image.Summary{ID, RepoTags, Size, SharedSize, Containers, Labels}` (no VirtualSize); `container.Summary{ID, Names, Image, ImageID, Created int64, SizeRw, SizeRootFs, Labels, State ContainerState, Status}`; `volume.Volume{Name, Driver, Labels, Mountpoint, CreatedAt, UsageData *UsageData{RefCount, Size}}`; `container.LogConfig{Type string; Config map[string]string}`; `container.InspectResponse{LogPath, Name, HostConfig *HostConfig, …}`.
 
-Resolved dependency tree (`go.mod` of the scratch module): the two direct modules pull in 19 indirect modules, among them `github.com/docker/go-connections`, `github.com/docker/go-units`, `github.com/distribution/reference`, `github.com/containerd/errdefs`, `github.com/opencontainers/{go-digest,image-spec}`, `github.com/moby/docker-image-spec`, `github.com/Microsoft/go-winio`, `golang.org/x/sys`, and the OpenTelemetry modules `go.opentelemetry.io/otel{,/metric,/trace}`, `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp`, `go.opentelemetry.io/auto/sdk`, `github.com/go-logr/{logr,stdr}`, `github.com/felixge/httpsnoop`. These are transitive requirements of the SDK and are accepted as such.
+Resolved dependency tree (`go.mod` of the scratch module): the two direct modules pull in 18 indirect modules: `github.com/docker/go-connections`, `github.com/docker/go-units`, `github.com/distribution/reference`, `github.com/containerd/errdefs`, `github.com/containerd/errdefs/pkg`, `github.com/opencontainers/{go-digest,image-spec}`, `github.com/moby/docker-image-spec`, `github.com/Microsoft/go-winio`, `golang.org/x/sys`, and the OpenTelemetry modules `go.opentelemetry.io/otel{,/metric,/trace}`, `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp`, `go.opentelemetry.io/auto/sdk`, `github.com/go-logr/{logr,stdr}`, `github.com/felixge/httpsnoop`. These are transitive requirements of the SDK and are accepted as such.
 
 Conclusion: the spec's API section is correct. `IsErrConnectionFailed` is the right check for exit code 1.
 
@@ -149,7 +149,7 @@ curl --unix-socket … 'http://localhost/v1.52/system/df?type=build-cache&verbos
 {"BuildCacheUsage":{"TotalSize":1546143746,"Reclaimable":1118813063,"Items":[26 records with ID, Type, InUse, Shared, Size, CreatedAt, LastUsedAt, UsageCount]}}
 ```
 
-Observed difference: the engine's `Reclaimable` (1.119 GB, what `docker system df` prints) equals `Total − Shared` here, while `docker buildx du` reports `Reclaimable` = 1.546 GB (every record is `!InUse`). The engine excludes shared records from reclaimable; buildx does not. The spec's 6.4 formula followed buildx. dockdu must show the engine number as "what `docker system df` shows" and use `Shared || InUse` for "prune would NOT free". Spec amendment proposed in the PR.
+Observed difference: the engine's `Reclaimable` (1.119 GB, what `docker system df` prints) equals `Total − Shared` here, while `docker buildx du` reports `Reclaimable` = 1.546 GB (every record is `!InUse`). Source confirms the rule beyond this one data point: moby `daemon/internal/builder-next/builder.go`, `Builder.DiskUsage`, adds a record to `Reclaimable` only `if !r.InUse && !r.Shared`, and every record to `TotalSize`. Invariant for tests: `Reclaimable + Σ Size(Shared || InUse) == TotalSize`. Note for implementers: `build.CacheRecord.Parents` carries the json tag `" Parents"` (leading space) in api v1.56.1 and never decodes; dockdu does not use it. The spec's 6.4 formula followed buildx. dockdu must show the engine number as "what `docker system df` shows" and use `Shared || InUse` for "prune would NOT free". Spec amendment proposed in the PR.
 
 The API with `type=build-cache` returns the v1.52+ shape `BuildCacheUsage` (no legacy top-level arrays), consistent with the client's `DiskUsageResult`.
 

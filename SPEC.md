@@ -21,7 +21,7 @@ After: one command, a few seconds, a report that attributes the gap and names a 
 
 1. `dockdu` prints a human-readable report. `dockdu --json` prints the same data as JSON.
 2. Report sections, in this order:
-   1. Summary: total bytes Docker uses on disk (sum of all sections), what `docker system df` would report, the difference labelled "not shown by df".
+   1. Summary: what `docker system df` reports (the sum of its four SIZE rows), the bytes dockdu measured on top (container log files, labelled "not shown by df"), and a resource total = images + containers + volumes + (build cache total − build cache shared with images) + logs. Shared build-cache bytes are already inside the image sizes and are never added twice (review finding, 2026-10-13). The total counts shared layers once, as df does; it is not a disk-block count.
    2. Build cache: total, shared, private, reclaimable, and the line "prune would NOT free <X> (shared with images or in use)".
    3. Container logs: per container, log file size including rotated files, log driver, whether rotation is bounded, top N by size.
    4. Compose projects: per project (label `com.docker.compose.project`): containers, images referenced, volumes, log bytes, total. A final group "no compose project" for everything else. Orphans flagged: volumes with `RefCount == 0`, dangling images, stopped containers older than 7 days.
@@ -107,13 +107,15 @@ Relevant fields:
 - private = total - shared
 - "prune would NOT free" = sum of Size where `Shared || InUse`. Pruning a shared record only deletes metadata; the bytes stay with the image.
 - An estimate of freed space is not a guarantee: physical space inside a Docker Desktop VM file is only returned when Desktop compacts it.
+- Source for the engine rule: moby `daemon/internal/builder-next/builder.go`, `Builder.DiskUsage` counts a record as reclaimable only when `!InUse && !Shared`. Invariant to assert in tests: `Reclaimable + Σ Size(Shared || InUse) == TotalSize`.
+- Do not rely on `CacheRecord.Parents`: its json tag in api v1.56.1 is `" Parents"` (leading space) and never decodes.
 - Suggested command for reclaimable private cache: `docker builder prune --filter until=168h`. For everything unused: `docker builder prune -a`.
 
 ### 6.5 Container log files
 
 - `cli.ContainerInspect(ctx, id, client.ContainerInspectOptions{})` returns `.Container.LogPath` and `.Container.HostConfig.LogConfig{Type, Config map[string]string}`.
 - `json-file` driver: `LogPath` = `<data-root>/containers/<id>/<id>-json.log`. Rotated files: `<id>-json.log.1`, `.2`, … Defaults: `max-size` unlimited, `max-file` 1. Rotation is bounded only when `Config["max-size"]` is set.
-- `local` driver: the daemon leaves `LogPath` EMPTY. Derive `<data-root>/containers/<id>/local-logs/container.log`; rotated files are `container.log.1.gz` … Defaults: 20m × 5 files, compressed.
+- `local` driver: the daemon leaves `LogPath` EMPTY (observed). Derive `<data-root>/containers/<id>/local-logs/container.log` (observed); rotated files are `container.log.1.gz` … and the defaults are 20m × 5 files, compressed (from the driver docs, not observed). dockdu sums every regular file named `container.log*` in that directory.
 - Other drivers (journald, syslog, none): report "not on disk under data root" and skip sizing.
 - Size = sum of the current file plus all rotated siblings, using `os.Stat`. If the directory is unreadable, warn once and continue.
 - Suggested commands: unbounded json-file log → show how to set `log-opts` in `/etc/docker/daemon.json` (`"max-size": "10m", "max-file": "3"`, affects new containers only) and the per-container `--log-opt` flags. Never suggest deleting the file while the container runs.
@@ -148,7 +150,7 @@ Label keys (from docker/compose `pkg/api/labels.go`):
 - OrbStack: `~/Library/Group Containers/HUAQ24HBR6.dev.orbstack/data/data.img`, same measurement. Label the section "OrbStack" when only this file exists.
 - Fixed explanation paragraph (print verbatim, cite the Docker FAQ): space inside the VM file is freed when images, containers, volumes or build cache are removed. The file itself shrinks only when Docker Desktop compacts it; lowering the "Disk usage limit" in Settings → Resources → Advanced deletes the file and all images.
 - Detection: only on `runtime.GOOS == "darwin"` and only when the file exists. Inside the container image this section is always skipped.
-- Spike result 2026-10-13: with the containerd snapshotter (Desktop default) image bytes are not under `/var/lib/docker`, so dockdu does not measure inside the VM. It shows the allocated file size and the sum of API-reported sizes as two separate numbers and says so.
+- Spike result 2026-10-13, observed on one machine: `/var/lib/docker/overlay2` and `image` do not exist with the containerd snapshotter and `du -sx /var/lib/docker` is tiny; where image bytes live was not determined. dockdu therefore does not measure inside the VM. It shows the allocated file size and the resource total from the summary as two separate numbers and says so.
 
 ## 7. Output format
 
@@ -158,9 +160,9 @@ Human-readable, width 100, aligned with `text/tabwriter`, sizes in binary units 
 dockdu v0.1.0 · docker 29.1.0 · data root /var/lib/docker
 
 SUMMARY
-  Docker uses            138.4 GiB on disk
-  docker system df shows  11.2 GiB
-  not shown by df        127.2 GiB  → build cache 64.1 GiB, container logs 48.3 GiB, other 14.8 GiB
+  docker system df reports    84.2 GiB   images 5.0 · containers 0.1 · volumes 15.0 · build cache 64.1
+  container logs on disk      48.3 GiB   not shown by df
+  Docker resources in total  101.5 GiB   = df − 31.0 GiB build cache shared with images + logs
 
 BUILD CACHE
   total 64.1 GiB · shared 31.0 GiB · private 33.1 GiB · reclaimable 33.1 GiB

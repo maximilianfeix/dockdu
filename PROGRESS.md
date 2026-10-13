@@ -9,7 +9,7 @@ Phase 0 (feasibility spike) complete, awaiting merge of PR for issue #1. Next: P
 ## Done
 
 - 2026-10-13: Repository created (github.com/maximilianfeix/dockdu), spec and rules committed on `main`.
-- 2026-10-13: Toolchain installed: Go 1.27.2, GoReleaser 2.18.3. Docker Desktop 29.2.0 running, API 1.53.
+- 2026-10-13: Toolchain installed: Go 1.27.2, GoReleaser 2.18.3. Docker Desktop (engine 29.2.0, API 1.53) running.
 - 2026-10-13: Phase 0 spike answered in `docs/SPIKE.md` (Q1–Q5 plus `local` driver and Desktop VM file).
 
 ## Verified results (observed at runtime unless noted)
