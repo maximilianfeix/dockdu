@@ -17,10 +17,19 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false # no go.sum until the engine dependency lands
       - name: lint
         run: make lint
       - name: build
         run: make build
       - name: test
         run: make test
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: pull test image
+        run: docker pull alpine:3.22
+      - name: live-daemon tests inside a container with the data root mounted
+        run: make integration

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+<title id="title">dockdu mark</title>
+<desc id="desc">dockdu reveals Docker disk usage, including space not shown by df. Three stacked storage rows expose their unreported segments in cyan.</desc>
+<g font-family="ui-sans-serif, system-ui, -apple-system, &quot;Segoe UI&quot;, Inter, sans-serif">
+<g transform="translate(0 0) scale(1)">
+ <rect width="256" height="256" rx="48" fill="#141E27"/>
+ <g fill="#EAF1F4"><rect x="48" y="56" width="120" height="32" rx="4"/><rect x="48" y="112" width="80" height="32" rx="4"/><rect x="48" y="168" width="120" height="32" rx="4"/></g>
+ <g fill="#36B6C5"><rect x="184" y="56" width="24" height="32" rx="4"/><rect x="144" y="112" width="64" height="32" rx="4"/><rect x="184" y="168" width="24" height="32" rx="4"/></g>
+ </g>
+</g>
+</svg>
