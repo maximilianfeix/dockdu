@@ -138,13 +138,13 @@ dockdu --json | jq '.summary.not_shown_by_df_bytes, .build_cache.not_freed_by_pr
 dockdu --json | jq '.logs.items[] | select(.rotation == "unbounded") | {name, bytes}'
 ```
 
-Flags: `--top N` rows per section in text output (default 10, 0 for all), `--data-root PATH` when the daemon's data root is mounted somewhere else, `--no-desktop`, `--version`. Exit codes: `0` report complete, `1` cannot reach the daemon, `2` report rendered with warnings.
+Flags: `--top N` rows per section in text output (default 10, 0 for all), `--data-root PATH` when the daemon's data root is mounted somewhere else, `--no-desktop`, `--version`. Exit codes: `0` report complete, `1` cannot reach the daemon, `2` report rendered with warnings, `64` usage error.
 
 <a id="how-it-measures"></a>
 
 ## How it measures
 
-dockdu calls three Docker Engine API endpoints: `info`, `system/df` (verbose) and `containers/{id}/json`. Nothing else, and nothing that writes. It then:
+dockdu calls three Docker Engine API endpoints, `info`, `system/df` (verbose) and `containers/{id}/json`, plus the version ping the client does on first use. Nothing else, and nothing that writes. It then:
 
 1. takes the four SIZE rows of `docker system df` as the daemon reports them, never recomputed;
 2. stats the log files under the data root (`<root>/containers/<id>/<id>-json.log*` for `json-file`, `<root>/containers/<id>/local-logs/container.log*` for `local`), following no symlinks and reading no contents;
@@ -160,9 +160,9 @@ The reclaimable figure for build cache is the daemon's. It excludes shared recor
 | | `docker system df -v` | lazydocker | dive | doku | dockdu |
 |---|---|---|---|---|---|
 | Logs per container | no | no | no | yes | **yes** |
-| Build cache shared vs private | two commands | no | no | partly | **yes, with "prune would not free"** |
+| Build cache shared vs private | per record, no total | no | no | partly | **yes, with "prune would not free"** |
 | Grouped by compose project | no | no | no | no | **yes** |
-| Orphan volumes named | no | no | no | partly | **yes** |
+| Orphan volumes named | unreferenced only, not compose-aware | no | no | partly | **yes** |
 | Docker Desktop VM file | no | no | no | no | **yes** |
 | Form | CLI | TUI | TUI | web UI in a container | **one read-only command, JSON** |
 | Deletes anything | no | on request | no | no | **never** |
