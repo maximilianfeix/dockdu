@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 3 (build cache and image rules) complete on branch `phase-3-buildcache-images` (issue #5). Next: Phase 4 (logs).
+Phase 4 (container log files) complete on branch `phase-4-logs` (issue #7). Next: Phase 5 (compose grouping and volumes).
 
 ## Done
 
@@ -14,6 +14,7 @@ Phase 3 (build cache and image rules) complete on branch `phase-3-buildcache-ima
 - 2026-10-13: Phase 1 skeleton: go.mod (`go 1.26`), `cmd/dockdu` with `--help`/`--version` and tests, Makefile (lint fails on unformatted files), .gitignore, MIT LICENSE, README stub, CI workflow. `make check` green locally.
 - 2026-10-13: Phase 2: `internal/engine` (Snapshot model, Moby implementation using Info + DiskUsage + ContainerInspect only, Static engine, fixture load/write with no-overwrite, Sanitize), `internal/report/model.go`, `internal/collect/usage.go` (df totals and summary), fixture `internal/collect/testdata/desktop-29.2.json` recorded from this machine via `DOCKDU_RECORD_FIXTURE`. Tests green.
 - 2026-10-13: Phase 3: `internal/collect/buildcache.go` (engine reclaimable, shared, private, in-use, not-freed-by-prune, duplicate IDs counted once, total mismatch warned), `images.go` (dangling, unique bytes only when Containers==0 and SharedSize known, sorted by size), `internal/report/suggest.go` (no volume prune, ever). Tests written first; 18 tests green.
+- 2026-10-13: Phase 4: `internal/collect/logs.go` (json-file path from inspect or derived, local driver under local-logs/, rotated siblings summed, Lstat only, symlinks ignored, unreadable → unmeasured + incomplete, other drivers "not on disk"), 8 unit tests, integration test SPEC §9.4 creates its own `dockdu.test=1` container via the SDK and removes it by ID. `make integration` runs it inside golang:1.27 with the socket and `/var/lib/docker:ro` mounted: PASS, 3116 bytes in 3 files observed. On the macOS host the test skips (data root inside the VM).
 
 ## Verified results (observed at runtime unless noted)
 
@@ -41,4 +42,4 @@ Containers with label `dockdu.test=1`: `dockdu-test-logs` (1f1412f2177f), `dockd
 
 ## Next executable step
 
-Phase 4 on branch `phase-4-logs`: tests first for json-file and local path derivation, rotated-file summing, rotation status, unreadable directory → unmeasured (not 0); then `internal/collect/logs.go` and the `DOCKDU_INTEGRATION=1` test from SPEC §9.4 using a container labelled `dockdu.test=1`.
+Phase 5 on branch `phase-5-compose-volumes`: tests first for project grouping, shared images counted once, (none) bucket, orphan volumes, unknown sizes, stopped containers older than 7 days; then `compose.go` and `volumes.go`.

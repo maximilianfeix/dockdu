@@ -19,3 +19,15 @@ check: lint test build
 
 snapshot:
 	goreleaser release --snapshot --clean
+
+# integration runs the live-daemon tests where the data root is visible:
+# inside a container with the socket and /var/lib/docker mounted read-only.
+# On Linux hosts with root access you can also run it directly:
+#   DOCKDU_INTEGRATION=1 go test ./...
+integration:
+	docker run --rm \
+	  -v /var/run/docker.sock:/var/run/docker.sock \
+	  -v /var/lib/docker:/var/lib/docker:ro \
+	  -v "$(CURDIR)":/src -w /src \
+	  -e DOCKDU_INTEGRATION=1 -e GOFLAGS=-buildvcs=false \
+	  golang:1.27 go test ./... -run Integration -v
