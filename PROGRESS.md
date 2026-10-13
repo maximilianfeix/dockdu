@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 7 (release candidate) complete on branch `phase-7-release` (PR #13, CI green incl. integration and CodeQL). All nine SPEC §9 criteria pass locally; evidence in `docs/verification/acceptance-2026-10-13.md`. Nothing is tagged or published.
+v0.1.0 released on 2026-10-13 from `ebf8794`: GitHub release, ghcr.io images (public) and the Homebrew cask are live; verification in `docs/verification/release-2026-10-13.md`. No next phase planned; follow-ups are in SPEC.md §12.
 
 ## Done
 
@@ -50,4 +50,4 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 
 ## Next executable step
 
-Release (needs the owner): add the repository secret `HOMEBREW_TAP_GITHUB_TOKEN` (contents:write on maximilianfeix/homebrew-tap), then `git tag v0.1.0 && git push origin v0.1.0`; the release workflow builds archives, the cask and the ghcr image and publishes the GitHub release. Then, once: set the ghcr package `dockdu` to public under the package settings (personal packages start private) and check `brew install maximilianfeix/tap/dockdu` on macOS and Linux. After that: `brew install maximilianfeix/tap/dockdu` and `docker run … ghcr.io/maximilianfeix/dockdu` are the two acceptance checks that could not run before publishing. Optional: upload `docs/social-preview.svg` (as PNG) under Settings → Social preview.
+Before the next tagged release: give the fine-grained token behind `HOMEBREW_TAP_GITHUB_TOKEN` Contents: Read and write on `maximilianfeix/homebrew-tap` (the v0.1.0 run failed at the cask step with 403 and the cask was pushed by hand). Optional: upload `docs/social-preview.svg` as PNG under Settings → Social preview.
