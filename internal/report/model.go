@@ -96,25 +96,33 @@ type LogItem struct {
 	Note     string `json:"note,omitempty"`
 }
 
-// Projects groups resources by compose project.
+// Projects groups resources by compose project. TotalBytes is additive over
+// Items: images used by more than one project are reported per project in
+// SharedImageBytes and counted once in SharedImageBytes at this level.
 type Projects struct {
-	Items       []Project `json:"items"`
-	Suggestions []string  `json:"suggestions"`
+	Items            []Project `json:"items"`
+	TotalBytes       int64     `json:"total_bytes"`
+	SharedImageBytes int64     `json:"shared_image_bytes"`
+	Suggestions      []string  `json:"suggestions"`
 }
 
 // Project is one compose project (or the "(none)" bucket).
 type Project struct {
-	Name           string `json:"name"`
-	Containers     int    `json:"containers"`
-	ImageBytes     int64  `json:"image_bytes"`
-	ImagesShared   int    `json:"images_shared_with_other_projects"`
-	VolumeBytes    int64  `json:"volume_bytes"`
-	VolumesUnknown int    `json:"volumes_size_unknown"`
-	LogBytes       int64  `json:"log_bytes"`
-	TotalBytes     int64  `json:"total_bytes"`
-	OrphanVolumes  int    `json:"orphan_volumes"`
-	DanglingImages int    `json:"dangling_images"`
-	StoppedOld     int    `json:"stopped_containers_older_than_7d"`
+	Name       string `json:"name"`
+	Containers int    `json:"containers"`
+	// ImageBytes counts images used only by this project.
+	ImageBytes int64 `json:"image_bytes"`
+	// SharedImageBytes counts images this project uses that other projects use
+	// too. They are not part of TotalBytes, so project totals stay additive.
+	SharedImageBytes int64 `json:"shared_image_bytes"`
+	ImagesShared     int   `json:"images_shared_with_other_projects"`
+	VolumeBytes      int64 `json:"volume_bytes"`
+	VolumesUnknown   int   `json:"volumes_size_unknown"`
+	LogBytes         int64 `json:"log_bytes"`
+	TotalBytes       int64 `json:"total_bytes"`
+	OrphanVolumes    int   `json:"orphan_volumes"`
+	DanglingImages   int   `json:"dangling_images"`
+	StoppedOld       int   `json:"stopped_containers_older_than_7d"`
 }
 
 // Images follows SPEC §6.7.
