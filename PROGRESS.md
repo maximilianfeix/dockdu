@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-Phase 5 (compose grouping and volumes) complete on branch `phase-5-compose-volumes`. Next: Phase 6 (renderers, Desktop section, CLI wiring).
+Phase 6 (renderers, Desktop section, CLI) complete on branch `phase-6-render` (PR #12). Next: Phase 7 (release candidate: GoReleaser, container image, README, demo).
 
 ## Done
 
@@ -16,6 +16,7 @@ Phase 5 (compose grouping and volumes) complete on branch `phase-5-compose-volum
 - 2026-10-13: Phase 3: `internal/collect/buildcache.go` (engine reclaimable, shared, private, in-use, not-freed-by-prune, duplicate IDs counted once, total mismatch warned), `images.go` (dangling, unique bytes only when Containers==0 and SharedSize known, sorted by size), `internal/report/suggest.go` (no volume prune, ever). Tests written first; 18 tests green.
 - 2026-10-13: Phase 4: `internal/collect/logs.go` (json-file path from inspect or derived, local driver under local-logs/, rotated siblings summed, Lstat only, symlinks ignored, unreadable → unmeasured + incomplete, other drivers "not on disk"), 8 unit tests, integration test SPEC §9.4 creates its own `dockdu.test=1` container via the SDK and removes it by ID. `make integration` runs it inside golang:1.27 with the socket and `/var/lib/docker:ro` mounted: PASS, 3116 bytes in 3 files observed. On the macOS host the test skips (data root inside the VM).
 - 2026-10-13: Phase 5: `compose.go` (projects from the compose label, images attributed through container references, images used by several projects reported per project in SharedImageBytes and counted once at section level so project totals stay additive, dangling and unused images in the (none) bucket, stopped containers older than 7 days), `volumes.go` (referenced / unreferenced / unknown; orphan only when unreferenced and not compose-created; one `docker volume rm` hint per orphan, never bulk), `AttachImageProjects`. Tests first; all green.
+- 2026-10-13: Phase 6: `internal/report/text.go` (SPEC §7 layout, golden test), `json.go`, `internal/collect/build.go`, `desktop_darwin.go` (Docker.raw / OrbStack apparent vs allocated), `cmd/dockdu` flags `--json --top --data-root --no-desktop`, exit codes 0/1/2 tested from the fixture. Collector review (phases 3–5) applied here: container IDs validated as hex before path use, log paths kept under the data root, build-cache invariant warned, private bytes unknown instead of 0 on mismatch, section total counts shared images once, `image prune -a` hint warns about locally built images, duplicate IDs deduplicated, dangling-unknown counted, ImageID fallback by tag.
 
 ## Verified results (observed at runtime unless noted)
 

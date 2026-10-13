@@ -21,7 +21,12 @@ func Images(s *engine.Snapshot) (report.Images, []string) {
 		out.Count = int(s.Totals.Images.TotalCount)
 	}
 	unusedTagged := 0
+	seen := make(map[string]bool, len(s.Images))
 	for _, im := range s.Images {
+		if im.ID != "" && seen[im.ID] {
+			continue
+		}
+		seen[im.ID] = true
 		it := report.ImageItem{
 			ID:          im.ID,
 			Tags:        append([]string{}, im.RepoTags...),
@@ -35,6 +40,8 @@ func Images(s *engine.Snapshot) (report.Images, []string) {
 			out.Dangling++
 			if it.UniqueBytes >= 0 {
 				out.DanglingBytes += it.UniqueBytes
+			} else {
+				out.DanglingUnknown++
 			}
 		} else if im.Containers == 0 {
 			unusedTagged++

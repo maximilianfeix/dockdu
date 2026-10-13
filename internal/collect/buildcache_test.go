@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,9 @@ func TestBuildCacheUsesEngineReclaimableNotBuildxRule(t *testing.T) {
 	// Observed 2026-10-13: engine reclaimable excludes shared records,
 	// buildx counts every !InUse record. dockdu reports the engine number.
 	s := &engine.Snapshot{
-		Totals: engine.Totals{BuildCache: engine.Aggregate{TotalCount: 3, TotalSize: 600, Reclaimable: 300}},
+		// Engine rule: reclaimable = Σ Size(!InUse && !Shared) = record b = 200,
+		// and reclaimable + Σ Size(Shared || InUse) == total (200 + 400 == 600).
+		Totals: engine.Totals{BuildCache: engine.Aggregate{TotalCount: 3, TotalSize: 600, Reclaimable: 200}},
 		BuildCache: []engine.CacheRecord{
 			rec("a", 300, true, false),  // shared, unused
 			rec("b", 200, false, false), // private, unused
@@ -29,8 +32,8 @@ func TestBuildCacheUsesEngineReclaimableNotBuildxRule(t *testing.T) {
 	if got.Records != 3 || got.TotalBytes != 600 {
 		t.Fatalf("records/total = %d/%d", got.Records, got.TotalBytes)
 	}
-	if got.ReclaimableBytes != 300 {
-		t.Fatalf("reclaimable = %d, want engine value 300 (not buildx 500)", got.ReclaimableBytes)
+	if got.ReclaimableBytes != 200 {
+		t.Fatalf("reclaimable = %d, want engine value 200 (not buildx 500)", got.ReclaimableBytes)
 	}
 	if got.SharedBytes != 300 || got.PrivateBytes != 300 || got.InUseBytes != 100 {
 		t.Fatalf("shared/private/inuse = %d/%d/%d", got.SharedBytes, got.PrivateBytes, got.InUseBytes)
@@ -94,5 +97,27 @@ func TestBuildCacheSuggestions(t *testing.T) {
 		BuildCache: []engine.CacheRecord{rec("s", 100, true, true)}})
 	if len(none.Suggestions) != 0 {
 		t.Fatalf("nothing reclaimable: no prune suggestion, got %v", none.Suggestions)
+	}
+}
+
+func TestBuildCacheInvariantViolationIsWarned(t *testing.T) {
+	s := &engine.Snapshot{
+		Totals:     engine.Totals{BuildCache: engine.Aggregate{TotalSize: 600, Reclaimable: 300}}, // should be 200
+		BuildCache: []engine.CacheRecord{rec("a", 300, true, false), rec("b", 200, false, false), rec("c", 100, false, true)},
+	}
+	_, warns := BuildCache(s)
+	if len(warns) != 1 || !strings.Contains(warns[0], "≠ total") {
+		t.Fatalf("expected an invariant warning, got %v", warns)
+	}
+}
+
+func TestBuildCacheNegativePrivateIsUnknown(t *testing.T) {
+	s := &engine.Snapshot{
+		Totals:     engine.Totals{BuildCache: engine.Aggregate{TotalSize: 100, Reclaimable: 0}},
+		BuildCache: []engine.CacheRecord{rec("a", 300, true, false)},
+	}
+	got, _ := BuildCache(s)
+	if got.PrivateBytes != -1 {
+		t.Fatalf("private must be unknown (-1) when records exceed the daemon total, got %d", got.PrivateBytes)
 	}
 }

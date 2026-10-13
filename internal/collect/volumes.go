@@ -24,8 +24,14 @@ func volumeReference(v engine.Volume) string {
 // Volumes applies SPEC §6.8. Orphan = unreferenced and not created by
 // compose. Suggestions name each orphan individually; there is no bulk form.
 func Volumes(s *engine.Snapshot) (report.Volumes, []string) {
-	out := report.Volumes{Count: len(s.Volumes), Items: make([]report.VolumeItem, 0, len(s.Volumes)), Suggestions: []string{}}
+	out := report.Volumes{Items: make([]report.VolumeItem, 0, len(s.Volumes)), Suggestions: []string{}}
+	seen := make(map[string]bool, len(s.Volumes))
 	for _, v := range s.Volumes {
+		if seen[v.Name] {
+			continue
+		}
+		seen[v.Name] = true
+		out.Count++
 		it := report.VolumeItem{
 			Name: v.Name, Driver: v.Driver, Project: v.Labels[composeProjectLabel],
 			Bytes: -1, RefCount: v.RefCount, Reference: volumeReference(v),

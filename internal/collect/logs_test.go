@@ -104,8 +104,8 @@ func TestLogsMissingDirIsUnmeasuredNotZero(t *testing.T) {
 	s := &engine.Snapshot{Containers: []engine.Container{{ID: "bbbbbbbbbbbb", Name: "gone", LogDriver: "json-file"}}}
 	got, warns := Logs(s, root)
 	it := got.Items[0]
-	if it.Measured || it.Note == "" || got.Complete || got.TotalBytes != 0 {
-		t.Fatalf("unmeasured container must be flagged, got item=%+v complete=%v", it, got.Complete)
+	if it.Measured || it.Note == "" || got.Complete || got.TotalBytes != 0 || it.Bytes != -1 {
+		t.Fatalf("unmeasured container must be flagged with bytes -1, got item=%+v complete=%v", it, got.Complete)
 	}
 	if len(warns) != 1 {
 		t.Fatalf("one warning expected, got %v", warns)
@@ -148,5 +148,42 @@ func TestLogsEmpty(t *testing.T) {
 	got, warns := Logs(&engine.Snapshot{}, t.TempDir())
 	if !got.Complete || got.Items == nil || len(got.Items) != 0 || got.Suggestions == nil || len(warns) != 0 {
 		t.Fatalf("empty: %+v %v", got, warns)
+	}
+}
+
+func TestLogsDataRootOverrideRebasesReportedPath(t *testing.T) {
+	root := t.TempDir()
+	id := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	writeFile(t, filepath.Join(root, "containers", id, id+"-json.log"), 42)
+	s := &engine.Snapshot{Daemon: engine.Daemon{DataRoot: "/var/lib/docker"}, Containers: []engine.Container{
+		{ID: id, Name: "moved", LogDriver: "json-file", LogPath: "/var/lib/docker/containers/" + id + "/" + id + "-json.log"},
+	}}
+	got, _ := Logs(s, root)
+	if !got.Items[0].Measured || got.Items[0].Bytes != 42 {
+		t.Fatalf("path under the daemon root must be rebased onto --data-root, got %+v", got.Items[0])
+	}
+	// Without an override the daemon's absolute path is used as is.
+	got, _ = Logs(s, "")
+	if got.Items[0].Measured {
+		t.Fatalf("without override the daemon path (missing here) must stay unmeasured, got %+v", got.Items[0])
+	}
+}
+
+func TestLogsRejectsInvalidIDsAndPathsOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "x-json.log"), 999)
+	s := &engine.Snapshot{Daemon: engine.Daemon{DataRoot: root}, Containers: []engine.Container{
+		{ID: "../../etc", Name: "evil-id", LogDriver: "json-file"},
+		{ID: "ffffffffffff", Name: "evil-path", LogDriver: "json-file", LogPath: filepath.Join(outside, "x-json.log")},
+	}}
+	got, warns := Logs(s, "")
+	for _, it := range got.Items {
+		if it.Measured {
+			t.Fatalf("must not measure %s: %+v", it.Name, it)
+		}
+	}
+	if got.Complete || len(warns) != 2 {
+		t.Fatalf("both must be flagged: complete=%v warns=%v", got.Complete, warns)
 	}
 }

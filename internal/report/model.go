@@ -30,6 +30,9 @@ type Daemon struct {
 	StorageDriver   string `json:"storage_driver"`
 	LoggingDriver   string `json:"logging_driver"`
 	DataRoot        string `json:"data_root"`
+	// ReportedDataRoot is the daemon\'s own data root when --data-root
+	// overrode it; DataRoot is then the path dockdu actually read.
+	ReportedDataRoot string `json:"reported_data_root,omitempty"`
 }
 
 // Summary is the headline: what Docker reports, what dockdu measured on top,
@@ -84,21 +87,23 @@ type LogItem struct {
 	Name        string `json:"name"`
 	Project     string `json:"project,omitempty"`
 	Driver      string `json:"driver"`
-	// Rotation is "unbounded", "bounded" or "not on disk".
+	// Rotation is "unbounded", "bounded", "not on disk" or "unknown"
+	// (inspect failed or the id was rejected).
 	Rotation string `json:"rotation"`
 	MaxSize  string `json:"max_size,omitempty"`
 	MaxFile  string `json:"max_file,omitempty"`
 	Bytes    int64  `json:"bytes"`
 	Files    int    `json:"files"`
-	// Measured is false when the files could not be read; Bytes is then 0
+	// Measured is false when the files could not be read; Bytes is then -1
 	// and must not be summed.
 	Measured bool   `json:"measured"`
 	Note     string `json:"note,omitempty"`
 }
 
-// Projects groups resources by compose project. TotalBytes is additive over
-// Items: images used by more than one project are reported per project in
-// SharedImageBytes and counted once in SharedImageBytes at this level.
+// Projects groups resources by compose project. Images used by more than one
+// project appear in each project's SharedImageBytes and are excluded from the
+// project's TotalBytes; the section TotalBytes counts them once:
+// TotalBytes == Σ Items.TotalBytes + SharedImageBytes.
 type Projects struct {
 	Items            []Project `json:"items"`
 	TotalBytes       int64     `json:"total_bytes"`
@@ -119,18 +124,25 @@ type Project struct {
 	VolumeBytes      int64 `json:"volume_bytes"`
 	VolumesUnknown   int   `json:"volumes_size_unknown"`
 	LogBytes         int64 `json:"log_bytes"`
-	TotalBytes       int64 `json:"total_bytes"`
-	OrphanVolumes    int   `json:"orphan_volumes"`
-	DanglingImages   int   `json:"dangling_images"`
-	StoppedOld       int   `json:"stopped_containers_older_than_7d"`
+	// LogsUnknown counts containers of this project whose logs could not be
+	// measured; LogBytes is then a lower bound.
+	LogsUnknown    int   `json:"logs_unknown"`
+	TotalBytes     int64 `json:"total_bytes"`
+	OrphanVolumes  int   `json:"orphan_volumes"`
+	DanglingImages int   `json:"dangling_images"`
+	// StoppedOld counts non-running containers created more than 7 days ago
+	// (the API has no stop time).
+	StoppedOld int `json:"stopped_containers_created_over_7d"`
 }
 
 // Images follows SPEC §6.7.
 type Images struct {
-	Count            int         `json:"count"`
-	TotalBytes       int64       `json:"total_bytes"`
-	Dangling         int         `json:"dangling"`
-	DanglingBytes    int64       `json:"dangling_bytes"`
+	Count         int   `json:"count"`
+	TotalBytes    int64 `json:"total_bytes"`
+	Dangling      int   `json:"dangling"`
+	DanglingBytes int64 `json:"dangling_bytes"`
+	// DanglingUnknown counts dangling images whose unique size is unknown; DanglingBytes is then a lower bound.
+	DanglingUnknown  int         `json:"dangling_unknown"`
 	ReclaimableBytes int64       `json:"reclaimable_bytes"`
 	Items            []ImageItem `json:"items"`
 	Suggestions      []string    `json:"suggestions"`

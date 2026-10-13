@@ -24,17 +24,28 @@ func projectOf(labels map[string]string) string {
 }
 
 // imageProjects maps every image ID to the sorted set of projects whose
-// containers reference it. Images no container uses are absent.
+// containers reference it. Images no container uses are absent. A container
+// without ImageID falls back to matching its image name against RepoTags.
 func imageProjects(s *engine.Snapshot) map[string][]string {
+	byTag := map[string]string{}
+	for _, im := range s.Images {
+		for _, t := range im.RepoTags {
+			byTag[t] = im.ID
+		}
+	}
 	set := map[string]map[string]bool{}
 	for _, c := range s.Containers {
-		if c.ImageID == "" {
+		id := c.ImageID
+		if id == "" {
+			id = byTag[c.Image]
+		}
+		if id == "" {
 			continue
 		}
-		if set[c.ImageID] == nil {
-			set[c.ImageID] = map[string]bool{}
+		if set[id] == nil {
+			set[id] = map[string]bool{}
 		}
-		set[c.ImageID][projectOf(c.Labels)] = true
+		set[id][projectOf(c.Labels)] = true
 	}
 	out := make(map[string][]string, len(set))
 	for id, ps := range set {
@@ -73,29 +84,41 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 
 	owners := imageProjects(s)
 	var sharedOnce int64
+	seenImage := make(map[string]bool, len(s.Images))
 	for _, im := range s.Images {
+		if im.ID != "" && seenImage[im.ID] {
+			continue
+		}
+		seenImage[im.ID] = true
+		size := im.Size
+		if size < 0 {
+			size = 0 // unknown image size: not added, never negative
+		}
 		ps, used := owners[im.ID]
 		switch {
 		case !used && isDangling(im):
 			row(noneProject).DanglingImages++
-			if im.Size > 0 {
-				row(noneProject).ImageBytes += im.Size
-			}
+			row(noneProject).ImageBytes += size
 		case !used:
-			row(noneProject).ImageBytes += im.Size
+			row(noneProject).ImageBytes += size
 		case len(ps) == 1:
-			row(ps[0]).ImageBytes += im.Size
+			row(ps[0]).ImageBytes += size
 		default:
-			sharedOnce += im.Size
+			sharedOnce += size
 			for _, p := range ps {
 				r := row(p)
-				r.SharedImageBytes += im.Size
+				r.SharedImageBytes += size
 				r.ImagesShared++
 			}
 		}
 	}
 
+	seenVolume := make(map[string]bool, len(s.Volumes))
 	for _, v := range s.Volumes {
+		if seenVolume[v.Name] {
+			continue
+		}
+		seenVolume[v.Name] = true
 		r := row(projectOf(v.Labels))
 		if v.HasUsageData && v.Size >= 0 {
 			r.VolumeBytes += v.Size
@@ -108,12 +131,15 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 	}
 
 	for _, it := range logs.Items {
-		if !it.Measured {
-			continue
-		}
 		name := it.Project
 		if name == "" {
 			name = noneProject
+		}
+		if !it.Measured {
+			if it.Rotation != "not on disk" {
+				row(name).LogsUnknown++
+			}
+			continue
 		}
 		row(name).LogBytes += it.Bytes
 	}
@@ -124,6 +150,7 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 		out.TotalBytes += r.TotalBytes
 		out.Items = append(out.Items, *r)
 	}
+	out.TotalBytes += sharedOnce // shared images counted exactly once at section level
 	sort.SliceStable(out.Items, func(i, j int) bool {
 		a, b := out.Items[i], out.Items[j]
 		if (a.Name == noneProject) != (b.Name == noneProject) {
