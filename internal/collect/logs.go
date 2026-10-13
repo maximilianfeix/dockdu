@@ -20,6 +20,10 @@ const composeProjectLabel = "com.docker.compose.project"
 // rotatedSuffix matches "", ".1", ".12", ".1.gz" after the base log name.
 var rotatedSuffix = regexp.MustCompile(`^(\.[0-9]+(\.gz)?)?$`)
 
+// containerID is the daemon's 64-hex (or shortened) identifier. Anything
+// else is not joined into a path.
+var containerID = regexp.MustCompile(`^[0-9a-f]{12,64}$`)
+
 // Logs applies SPEC §6.5. It only stats files: it never opens, reads or
 // follows symbolic links. dataRoot overrides the daemon's data root (the
 // snapshot value is used when dataRoot is empty); with an override, log
@@ -47,6 +51,11 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 			it.Note = "inspect failed: " + c.InspectError
 			out.Complete = false
 			warns = append(warns, fmt.Sprintf("logs: %s not measured, inspect failed", c.Name))
+		case !containerID.MatchString(c.ID):
+			it.Rotation = "unknown"
+			it.Note = "invalid container id from the daemon; not used in a path"
+			out.Complete = false
+			warns = append(warns, fmt.Sprintf("logs: %s not measured: invalid container id %q", c.Name, c.ID))
 		case c.LogDriver == "json-file":
 			it.Rotation, it.MaxSize, it.MaxFile = rotationJSONFile(c.LogOpts)
 			path := c.LogPath
@@ -55,6 +64,12 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 				path = filepath.Join(dataRoot, "containers", c.ID, c.ID+"-json.log")
 			case override && strings.HasPrefix(path, daemonRoot+string(filepath.Separator)):
 				path = filepath.Join(dataRoot, strings.TrimPrefix(path, daemonRoot))
+			}
+			if !underRoot(path, dataRoot) {
+				it.Note = "log path reported by the daemon is outside the data root; not measured"
+				out.Complete = false
+				warns = append(warns, fmt.Sprintf("logs: %s not measured: path outside data root", c.Name))
+				break
 			}
 			measure(&it, filepath.Dir(path), filepath.Base(path), &out, &warns)
 			if it.Measured && it.Rotation == "unbounded" && it.Bytes > 0 {
@@ -98,6 +113,8 @@ func measure(it *report.LogItem, dir, base string, out *report.Logs, warns *[]st
 		*warns = append(*warns, fmt.Sprintf("logs: %s not measured: %s", it.Name, it.Note))
 		return
 	}
+	// A file rotated away between ReadDir and Lstat is skipped: a slight
+	// undercount for that instant, never an error.
 	var bytes int64
 	files := 0
 	for _, e := range entries {
@@ -117,6 +134,16 @@ func measure(it *report.LogItem, dir, base string, out *report.Logs, warns *[]st
 	it.Files = files
 	it.Measured = true
 	out.TotalBytes += bytes
+}
+
+// underRoot reports whether path stays inside root after cleaning, so a
+// crafted LogPath cannot point dockdu at an arbitrary directory.
+func underRoot(path, root string) bool {
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func rotationJSONFile(opts map[string]string) (rotation, maxSize, maxFile string) {

@@ -96,9 +96,10 @@ type LogItem struct {
 	Note     string `json:"note,omitempty"`
 }
 
-// Projects groups resources by compose project. TotalBytes is additive over
-// Items: images used by more than one project are reported per project in
-// SharedImageBytes and counted once in SharedImageBytes at this level.
+// Projects groups resources by compose project. Images used by more than one
+// project appear in each project's SharedImageBytes and are excluded from the
+// project's TotalBytes; the section TotalBytes counts them once:
+// TotalBytes == Σ Items.TotalBytes + SharedImageBytes.
 type Projects struct {
 	Items            []Project `json:"items"`
 	TotalBytes       int64     `json:"total_bytes"`
@@ -122,15 +123,19 @@ type Project struct {
 	TotalBytes       int64 `json:"total_bytes"`
 	OrphanVolumes    int   `json:"orphan_volumes"`
 	DanglingImages   int   `json:"dangling_images"`
-	StoppedOld       int   `json:"stopped_containers_older_than_7d"`
+	// StoppedOld counts non-running containers created more than 7 days ago
+	// (the API has no stop time).
+	StoppedOld int `json:"stopped_containers_created_over_7d"`
 }
 
 // Images follows SPEC §6.7.
 type Images struct {
-	Count            int         `json:"count"`
-	TotalBytes       int64       `json:"total_bytes"`
-	Dangling         int         `json:"dangling"`
-	DanglingBytes    int64       `json:"dangling_bytes"`
+	Count         int   `json:"count"`
+	TotalBytes    int64 `json:"total_bytes"`
+	Dangling      int   `json:"dangling"`
+	DanglingBytes int64 `json:"dangling_bytes"`
+	// DanglingUnknown counts dangling images whose unique size is unknown; DanglingBytes is then a lower bound.
+	DanglingUnknown  int         `json:"dangling_unknown"`
 	ReclaimableBytes int64       `json:"reclaimable_bytes"`
 	Items            []ImageItem `json:"items"`
 	Suggestions      []string    `json:"suggestions"`

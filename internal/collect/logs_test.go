@@ -168,3 +168,22 @@ func TestLogsDataRootOverrideRebasesReportedPath(t *testing.T) {
 		t.Fatalf("without override the daemon path (missing here) must stay unmeasured, got %+v", got.Items[0])
 	}
 }
+
+func TestLogsRejectsInvalidIDsAndPathsOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "x-json.log"), 999)
+	s := &engine.Snapshot{Daemon: engine.Daemon{DataRoot: root}, Containers: []engine.Container{
+		{ID: "../../etc", Name: "evil-id", LogDriver: "json-file"},
+		{ID: "ffffffffffff", Name: "evil-path", LogDriver: "json-file", LogPath: filepath.Join(outside, "x-json.log")},
+	}}
+	got, warns := Logs(s, "")
+	for _, it := range got.Items {
+		if it.Measured {
+			t.Fatalf("must not measure %s: %+v", it.Name, it)
+		}
+	}
+	if got.Complete || len(warns) != 2 {
+		t.Fatalf("both must be flagged: complete=%v warns=%v", got.Complete, warns)
+	}
+}

@@ -58,7 +58,12 @@ func BuildCache(s *engine.Snapshot) (report.BuildCache, []string) {
 		Suggestions:      []string{},
 	}
 	if out.PrivateBytes < 0 {
-		out.PrivateBytes = 0
+		// The daemon total and the records disagree; unknown, not 0.
+		out.PrivateBytes = -1
+	}
+	// Engine rule (moby builder.go): reclaimable + Σ(shared || in use) == total.
+	if records > 0 && s.Totals.BuildCache.TotalSize > 0 && out.ReclaimableBytes+notFreed != total {
+		warns = append(warns, fmt.Sprintf("build cache: daemon reclaimable %d + not-freed %d ≠ total %d; the reclaimable figure is the daemon's and may be stale", out.ReclaimableBytes, notFreed, total))
 	}
 	if out.ReclaimableBytes > 0 {
 		out.Suggestions = append(out.Suggestions, report.SuggestBuilderPruneOld, report.SuggestBuilderPruneAll)

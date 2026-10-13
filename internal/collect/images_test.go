@@ -71,3 +71,20 @@ func TestImagesEmptyAndSorted(t *testing.T) {
 		t.Fatalf("items must be sorted by size desc, got %v", got.Items)
 	}
 }
+
+func TestImagesDuplicateIDsAndSortTieBreak(t *testing.T) {
+	s := &engine.Snapshot{Images: []engine.Image{
+		{ID: "sha256:b", Size: 5, Containers: 0}, {ID: "sha256:a", Size: 5, Containers: 0}, {ID: "sha256:a", Size: 5, Containers: 0},
+		{ID: "sha256:d", Size: 7, SharedSize: -1, Containers: 0}, // dangling, unique unknown
+	}}
+	got, _ := Images(s)
+	if len(got.Items) != 3 {
+		t.Fatalf("duplicate image IDs must count once, got %d items", len(got.Items))
+	}
+	if got.Items[1].ID != "sha256:a" || got.Items[2].ID != "sha256:b" {
+		t.Fatalf("equal sizes sort by ID: %v %v", got.Items[1].ID, got.Items[2].ID)
+	}
+	if got.DanglingUnknown != 1 || got.DanglingBytes != 5+5 {
+		t.Fatalf("dangling with unknown unique size must be counted separately: unknown=%d bytes=%d", got.DanglingUnknown, got.DanglingBytes)
+	}
+}

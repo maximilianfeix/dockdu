@@ -88,8 +88,9 @@ func TestProjectsGroupAndCountSharedImagesOnce(t *testing.T) {
 	for _, p := range got.Items {
 		sum += p.TotalBytes
 	}
-	if sum != got.TotalBytes {
-		t.Fatalf("project totals must add up to the section total without double counting: %d vs %d", sum, got.TotalBytes)
+	// Section total = Σ project totals + shared images counted exactly once.
+	if got.TotalBytes != sum+500 {
+		t.Fatalf("section total must count the 500 shared bytes once: items %d, total %d", sum, got.TotalBytes)
 	}
 	if got.Items[len(got.Items)-1].Name != "(none)" {
 		t.Fatalf("(none) must be listed last, got %v", got.Items)
@@ -159,5 +160,26 @@ func TestAttachImageProjects(t *testing.T) {
 				t.Fatalf("image used only by a non-compose container belongs to (none), got %v", it.Projects)
 			}
 		}
+	}
+}
+
+func TestProjectsEmptyImageIDFallsBackToTag(t *testing.T) {
+	s := &engine.Snapshot{
+		Images:     []engine.Image{{ID: "img-x", RepoTags: []string{"svc:1"}, Size: 10, Containers: 1}},
+		Containers: []engine.Container{{ID: "c", Name: "svc-1", Image: "svc:1", Labels: map[string]string{projLabel: "p"}}},
+	}
+	got, _ := Projects(s, report.Logs{Complete: true}, time.Now())
+	if got.Items[0].Name != "p" || got.Items[0].ImageBytes != 10 {
+		t.Fatalf("image should be attributed through the tag when ImageID is empty: %+v", got.Items)
+	}
+}
+
+func TestVolumesDuplicateNamesCountedOnce(t *testing.T) {
+	s := &engine.Snapshot{Volumes: []engine.Volume{
+		{Name: "v", HasUsageData: true, Size: 5, RefCount: 1}, {Name: "v", HasUsageData: true, Size: 5, RefCount: 1},
+	}}
+	got, _ := Volumes(s)
+	if got.Count != 1 || got.TotalBytes != 5 {
+		t.Fatalf("duplicates must count once: %+v", got)
 	}
 }
