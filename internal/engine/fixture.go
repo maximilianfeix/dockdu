@@ -77,15 +77,20 @@ func Record(ctx context.Context, e Engine, path string, overwrite bool) error {
 var keptLabelPrefixes = []string{"com.docker.compose.", "dockdu."}
 
 // Sanitize removes data a fixture does not need: labels outside the compose
-// namespace, the daemon host and name, and build-cache descriptions, which
-// can contain local paths and secrets from Dockerfile instructions.
+// namespace, the daemon host and name, registry hosts in image references,
+// and build-cache descriptions, which can contain local paths and secrets
+// from Dockerfile instructions.
 func Sanitize(s *Snapshot) {
 	s.Daemon.Host = "unix:///var/run/docker.sock"
 	for i := range s.Images {
 		s.Images[i].Labels = filterLabels(s.Images[i].Labels)
+		for j, tag := range s.Images[i].RepoTags {
+			s.Images[i].RepoTags[j] = redactRegistry(tag)
+		}
 	}
 	for i := range s.Containers {
 		s.Containers[i].Labels = filterLabels(s.Containers[i].Labels)
+		s.Containers[i].Image = redactRegistry(s.Containers[i].Image)
 		if wd, ok := s.Containers[i].Labels["com.docker.compose.project.working_dir"]; ok {
 			s.Containers[i].Labels["com.docker.compose.project.working_dir"] = redactPath(wd)
 		}
@@ -134,19 +139,39 @@ func redactPath(p string) string {
 	return strings.Join(parts, ",")
 }
 
-// redactDescription keeps only the instruction keyword (RUN, COPY, ...) of a
-// build step description.
-func redactDescription(d string) string {
-	d = strings.TrimSpace(d)
-	if d == "" {
-		return ""
+// redactRegistry replaces a registry host in an image reference with
+// <registry>, keeping the repository path and tag so grouping stays
+// readable. Docker treats the first path component as a registry when it
+// contains a dot or a colon or is "localhost".
+func redactRegistry(ref string) string {
+	first, rest, ok := strings.Cut(ref, "/")
+	if !ok {
+		return ref
 	}
+	if strings.ContainsAny(first, ".:") || first == "localhost" {
+		return "<registry>/" + rest
+	}
+	return ref
+}
+
+// redactDescription keeps only the stage marker and the instruction keyword
+// (RUN, COPY, ...) of a build step description.
+func redactDescription(d string) string {
 	fields := strings.Fields(d)
 	if len(fields) == 0 {
 		return ""
 	}
-	if strings.HasPrefix(fields[0], "[") && len(fields) > 1 {
-		return fields[0] + " " + fields[1] + " …"
+	i := 0
+	if strings.HasPrefix(fields[0], "[") {
+		// "[3/5] RUN …" or "[stage-1 4/4] RUN …": skip through the closing bracket.
+		for i < len(fields) && !strings.HasSuffix(fields[i], "]") {
+			i++
+		}
+		i++
 	}
-	return fields[0] + " …"
+	marker := strings.Join(fields[:min(i, len(fields))], " ")
+	if i >= len(fields) {
+		return strings.TrimSpace(marker + " …")
+	}
+	return strings.TrimSpace(marker + " " + fields[i] + " …")
 }

@@ -48,7 +48,11 @@ func (m *Moby) Snapshot(ctx context.Context) (*Snapshot, error) {
 	}
 
 	s := &Snapshot{
-		TakenAt: time.Now().UTC(),
+		TakenAt:    time.Now().UTC(),
+		Images:     []Image{},
+		Containers: []Container{},
+		Volumes:    []Volume{},
+		BuildCache: []CacheRecord{},
 		Daemon: Daemon{
 			Host:            m.cli.DaemonHost(),
 			ServerVersion:   infoRes.Info.ServerVersion,

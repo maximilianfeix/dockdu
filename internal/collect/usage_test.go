@@ -38,12 +38,15 @@ func TestSummarizeAddsLogsAndFlagsIncomplete(t *testing.T) {
 func TestDfTotalsFromRecordedFixture(t *testing.T) {
 	s, err := engine.LoadFixture("testdata/desktop-29.2.json")
 	if err != nil {
-		t.Skipf("fixture not recorded yet: %v", err)
+		t.Fatalf("committed fixture must load: %v", err)
 	}
 	got := DfTotals(s)
-	want := s.Totals.Images.TotalSize + s.Totals.Containers.TotalSize + s.Totals.Volumes.TotalSize + s.Totals.BuildCache.TotalSize
-	if got.DfReportedBytes != want || want <= 0 {
-		t.Fatalf("DfReportedBytes = %d, want %d (>0)", got.DfReportedBytes, want)
+	// Known values of the recorded machine (docker system df on 2026-10-13).
+	if got.DfImages != 3547066761 || got.DfContainers != 12288 || got.DfVolumes != 0 || got.DfBuildCache != 1546143746 {
+		t.Fatalf("df rows mapped wrong: %+v", got)
+	}
+	if got.DfReportedBytes != 3547066761+12288+0+1546143746 {
+		t.Fatalf("DfReportedBytes = %d", got.DfReportedBytes)
 	}
 	if len(s.Containers) == 0 || s.Containers[0].LogDriver == "" {
 		t.Fatalf("fixture should carry inspected log driver, got %+v", s.Containers)

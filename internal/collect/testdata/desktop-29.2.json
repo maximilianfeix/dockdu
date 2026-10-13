@@ -39,8 +39,8 @@
     {
       "id": "sha256:27bb79216327ff20f2e1cd6369d8903615cb64186e69615b69d619250787d6cf",
       "repo_tags": [
-        "ghcr.io/maximilianfeix/proxy-scraper:1.25.0",
-        "ghcr.io/maximilianfeix/proxy-scraper:latest"
+        "<registry>/maximilianfeix/proxy-scraper:1.25.0",
+        "<registry>/maximilianfeix/proxy-scraper:latest"
       ],
       "created": 1791236932,
       "size": 358147029,
@@ -80,7 +80,7 @@
     {
       "id": "sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58",
       "repo_tags": [
-        "ghcr.io/astral-sh/uv:python3.12-bookworm-slim"
+        "<registry>/astral-sh/uv:python3.12-bookworm-slim"
       ],
       "created": 1770240632,
       "size": 278307703,
@@ -172,7 +172,7 @@
       "log_path": "/var/lib/docker/containers/1f1412f2177f1838b0d6e8b7b91dfab5547324fdfc0a00a105e9acbf8c44fd87/1f1412f2177f1838b0d6e8b7b91dfab5547324fdfc0a00a105e9acbf8c44fd87-json.log"
     }
   ],
-  "volumes": null,
+  "volumes": [],
   "build_cache": [
     {
       "id": "mn5la5n1wtkod7k7fqlvmqp3q",
@@ -180,7 +180,7 @@
         "ycll0yds2283ybyrbnicl7h1f"
       ],
       "type": "regular",
-      "description": "[stage-1 4/4] …",
+      "description": "[stage-1 4/4] \u2026",
       "in_use": false,
       "shared": true,
       "size": 4128,
@@ -191,7 +191,7 @@
     {
       "id": "3mzfzoyu57mfiaiotdkaaiir3",
       "type": "frontend",
-      "description": "pulled …",
+      "description": "pulled \u2026",
       "in_use": false,
       "shared": false,
       "size": 40322885,
@@ -205,7 +205,7 @@
         "jx0q23mu5tm3uy4s6udn8hawc"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": false,
       "size": 18923520,
@@ -219,7 +219,7 @@
         "jb44ixo9ax8ymdzx3darf514d"
       ],
       "type": "regular",
-      "description": "[build 2/5] …",
+      "description": "[build 2/5] \u2026",
       "in_use": false,
       "shared": false,
       "size": 8192,
@@ -233,7 +233,7 @@
         "ry8t4ciqtt4y7jkk9r7az5iq1"
       ],
       "type": "regular",
-      "description": "[3/5] WORKDIR …",
+      "description": "[3/5] WORKDIR \u2026",
       "in_use": false,
       "shared": false,
       "size": 8284,
@@ -244,7 +244,7 @@
     {
       "id": "2qg1gnip9wt6nnefidm857p59",
       "type": "source.local",
-      "description": "local …",
+      "description": "local \u2026",
       "in_use": false,
       "shared": false,
       "size": 8192,
@@ -258,7 +258,7 @@
         "m802v8uv1pkldi9cgimbohnwy"
       ],
       "type": "regular",
-      "description": "pulled …",
+      "description": "pulled \u2026",
       "in_use": false,
       "shared": true,
       "size": 56704287,
@@ -272,7 +272,7 @@
         "jx0q23mu5tm3uy4s6udn8hawc"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": false,
       "size": 28381184,
@@ -283,7 +283,7 @@
     {
       "id": "v0j4cpbuvnl82i466yulgbvc7",
       "type": "regular",
-      "description": "pulled …",
+      "description": "pulled \u2026",
       "in_use": false,
       "shared": true,
       "size": 139704443,
@@ -297,7 +297,7 @@
         "qhusdua1toov8gnk7ywqtiafh"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": false,
       "size": 83303322,
@@ -311,7 +311,7 @@
         "yru98kmuppy6rrm82410zt86u"
       ],
       "type": "regular",
-      "description": "[build 4/5] …",
+      "description": "[build 4/5] \u2026",
       "in_use": false,
       "shared": false,
       "size": 2543616,
@@ -325,7 +325,7 @@
         "jb44ixo9ax8ymdzx3darf514d"
       ],
       "type": "regular",
-      "description": "[stage-1 2/4] …",
+      "description": "[stage-1 2/4] \u2026",
       "in_use": false,
       "shared": true,
       "size": 13074378,
@@ -339,7 +339,7 @@
         "rovpuu4db6f258p40bi0ih1wo"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": true,
       "size": 55849697,
@@ -350,7 +350,7 @@
     {
       "id": "sinka3v2gi5vodwn3f6h7ydkh",
       "type": "regular",
-      "description": "pulled …",
+      "description": "pulled \u2026",
       "in_use": false,
       "shared": false,
       "size": 139723226,
@@ -361,7 +361,7 @@
     {
       "id": "dmnyt0skxycmazd1ygwejzgf1",
       "type": "source.local",
-      "description": "local …",
+      "description": "local \u2026",
       "in_use": false,
       "shared": false,
       "size": 2609152,
@@ -375,7 +375,7 @@
         "jb44ixo9ax8ymdzx3darf514d"
       ],
       "type": "regular",
-      "description": "[stage-1 2/4] …",
+      "description": "[stage-1 2/4] \u2026",
       "in_use": false,
       "shared": true,
       "size": 31791746,
@@ -386,7 +386,7 @@
     {
       "id": "h6ipcth03z0ycfrjqy3xc1yp9",
       "type": "source.local",
-      "description": "local …",
+      "description": "local \u2026",
       "in_use": false,
       "shared": false,
       "size": 8192,
@@ -400,7 +400,7 @@
         "sinka3v2gi5vodwn3f6h7ydkh"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": false,
       "size": 789140172,
@@ -414,7 +414,7 @@
         "ml9jeeogrkwsp2mwk9l59yljp"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": true,
       "size": 112451415,
@@ -428,7 +428,7 @@
         "nh67lrw02j0890214g7gyri9v"
       ],
       "type": "regular",
-      "description": "pulled …",
+      "description": "pulled \u2026",
       "in_use": false,
       "shared": true,
       "size": 16632,
@@ -442,7 +442,7 @@
         "v0j4cpbuvnl82i466yulgbvc7"
       ],
       "type": "regular",
-      "description": "pulled …",
+      "description": "pulled \u2026",
       "in_use": false,
       "shared": true,
       "size": 17729829,
@@ -456,7 +456,7 @@
         "o33y77wfrugjqamf4bk94vs9x"
       ],
       "type": "regular",
-      "description": "[stage-1 4/4] …",
+      "description": "[stage-1 4/4] \u2026",
       "in_use": false,
       "shared": true,
       "size": 4128,
@@ -470,7 +470,7 @@
         "ol8dxuuc9vbfmp76kcbqteanp"
       ],
       "type": "regular",
-      "description": "mount …",
+      "description": "mount \u2026",
       "in_use": false,
       "shared": false,
       "size": 13743014,
@@ -481,7 +481,7 @@
     {
       "id": "h6elfr8eao0ahxmdsj1kb2gol",
       "type": "source.local",
-      "description": "local …",
+      "description": "local \u2026",
       "in_use": false,
       "shared": false,
       "size": 8192,
@@ -492,7 +492,7 @@
     {
       "id": "gmy2jb18ajurxk5pksjk4q2b3",
       "type": "source.local",
-      "description": "local …",
+      "description": "local \u2026",
       "in_use": false,
       "shared": false,
       "size": 4096,
@@ -506,7 +506,7 @@
         "51jhfo7oyv7hecb4o1v56coy0"
       ],
       "type": "regular",
-      "description": "[build 3/5] …",
+      "description": "[build 3/5] \u2026",
       "in_use": false,
       "shared": false,
       "size": 77824,

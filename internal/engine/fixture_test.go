@@ -49,6 +49,34 @@ func TestSanitizeDropsPrivateData(t *testing.T) {
 	}
 }
 
+func TestRedactHelpers(t *testing.T) {
+	cases := map[string]string{
+		"[3/5] WORKDIR /app":                      "[3/5] WORKDIR …",
+		"[stage-1 4/4] RUN npm ci --token=secret": "[stage-1 4/4] RUN …",
+		"RUN /bin/sh -c apt-get install":          "RUN …",
+		"[internal] load build definition":        "[internal] load …",
+		"":                                        "",
+	}
+	for in, want := range cases {
+		if got := redactDescription(in); got != want {
+			t.Errorf("redactDescription(%q) = %q, want %q", in, got, want)
+		}
+	}
+	regs := map[string]string{
+		"alpine:3.22":                             "alpine:3.22",
+		"library/alpine:3.22":                     "library/alpine:3.22",
+		"ghcr.io/someone/tool:1.0":                "<registry>/someone/tool:1.0",
+		"registry.corp.example:5000/team/app:dev": "<registry>/team/app:dev",
+		"localhost/app:dev":                       "<registry>/app:dev",
+		"<none>:<none>":                           "<none>:<none>",
+	}
+	for in, want := range regs {
+		if got := redactRegistry(in); got != want {
+			t.Errorf("redactRegistry(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestWriteLoadRoundTripAndNoOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fx.json")
 	s := sample()
