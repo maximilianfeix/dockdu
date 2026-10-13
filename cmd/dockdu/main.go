@@ -40,12 +40,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fs.PrintDefaults()
 		fs.SetOutput(stderr)
 	}
-	fs.Usage = func() { usage(stderr) }
+	// flag calls Usage itself on -h and on errors; keep that silent and
+	// print usage explicitly so help goes to stdout and errors to stderr.
+	fs.Usage = func() {}
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			usage(stdout) // requested help goes to stdout so it can be piped
 			return 0
 		}
+		usage(stderr) // flag already printed the error line
 		return 2
 	}
 	if fs.NArg() > 0 {
