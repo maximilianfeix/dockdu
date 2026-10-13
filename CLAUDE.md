@@ -5,7 +5,7 @@ Read-only Go CLI that explains where Docker's disk space went. @SPEC.md is the a
 ## Commands
 
 - Build: `go build ./...`
-- Checks before every commit: `gofmt -l . && go vet ./... && go test ./...` (all three must be clean)
+- Checks before every commit: `test -z "$(gofmt -l .)" && go vet ./... && go test ./...` (all three must be clean; the `test -z` makes a non-empty gofmt list fail)
 - Integration tests (need a running daemon): `DOCKDU_INTEGRATION=1 go test ./...`
 - Local release dry run: `goreleaser release --snapshot --clean`
 - Demo GIF: `vhs demo.tape`
@@ -36,7 +36,9 @@ Read-only Go CLI that explains where Docker's disk space went. @SPEC.md is the a
 
 - Conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`), one logical change per commit.
 - No `Co-Authored-By`, no "Generated with" or other AI attribution lines in commits, PRs or issues.
-- Never push, tag or force anything without asking.
+- Work per topic: issue, branch, PR, squash-merge. Pushing feature branches and merging PRs is authorised.
+- Never tag, force-push, reset, delete branches or publish a release without asking.
+- Commit identity: `Maxi <223365242+maximilianfeix@users.noreply.github.com>`.
 
 ## When compacting
 
