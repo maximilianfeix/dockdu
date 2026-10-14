@@ -187,3 +187,19 @@ func TestLogsRejectsInvalidIDsAndPathsOutsideRoot(t *testing.T) {
 		t.Fatalf("both must be flagged: complete=%v warns=%v", got.Complete, warns)
 	}
 }
+
+func TestLogsInvisibleDataRootWarnsOnce(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "inside-the-vm") // does not exist on this host
+	s := &engine.Snapshot{Containers: []engine.Container{
+		{ID: "aaaaaaaaaaaa", Name: "a", LogDriver: "json-file"},
+		{ID: "bbbbbbbbbbbb", Name: "b", LogDriver: "local"},
+		{ID: "cccccccccccc", Name: "c", LogDriver: "journald"},
+	}}
+	got, warns := Logs(s, root)
+	if len(warns) != 1 || !strings.Contains(warns[0], "2 container(s) not measured") {
+		t.Fatalf("want one summarising warning, got %v", warns)
+	}
+	if got.Complete || got.Items[0].Measured || got.Items[0].Bytes != -1 || got.Items[0].Note == "" {
+		t.Fatalf("items must stay unmeasured with a note: %+v", got.Items)
+	}
+}
