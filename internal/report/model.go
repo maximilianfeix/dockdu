@@ -50,7 +50,9 @@ type Summary struct {
 	// be measured; LogBytes is then a lower bound.
 	LogBytesComplete bool `json:"log_bytes_complete"`
 	// BuildCacheSharedBytes are build-cache bytes that also belong to an
-	// image; df counts them in both rows, dockdu subtracts them once.
+	// image and that df counts in both rows; dockdu subtracts them once.
+	// It is BuildCache.SharedCountedInDfBytes: 0 for daemons whose build
+	// cache row already leaves shared records out.
 	BuildCacheSharedBytes int64 `json:"build_cache_shared_bytes"`
 	// DockerBytesTotal = DfReportedBytes − BuildCacheSharedBytes + LogBytes.
 	// Shared layers are counted once, as df does: a resource total, not a
@@ -63,14 +65,19 @@ type Summary struct {
 
 // BuildCache follows SPEC §6.4.
 type BuildCache struct {
-	Records          int      `json:"records"`
-	TotalBytes       int64    `json:"total_bytes"`
-	SharedBytes      int64    `json:"shared_bytes"`
-	PrivateBytes     int64    `json:"private_bytes"`
-	ReclaimableBytes int64    `json:"reclaimable_bytes"`
-	NotFreedByPrune  int64    `json:"not_freed_by_prune_bytes"`
-	InUseBytes       int64    `json:"in_use_bytes"`
-	Suggestions      []string `json:"suggestions"`
+	Records          int   `json:"records"`
+	TotalBytes       int64 `json:"total_bytes"`
+	SharedBytes      int64 `json:"shared_bytes"`
+	PrivateBytes     int64 `json:"private_bytes"`
+	ReclaimableBytes int64 `json:"reclaimable_bytes"`
+	NotFreedByPrune  int64 `json:"not_freed_by_prune_bytes"`
+	InUseBytes       int64 `json:"in_use_bytes"`
+	// SharedCountedInDfBytes is the part of SharedBytes that df's build
+	// cache row contains. Daemons on API >= 1.52 include shared records in
+	// the row; for older daemons the client computes the row without them,
+	// so this is 0 and the summary subtracts nothing.
+	SharedCountedInDfBytes int64    `json:"shared_counted_in_df_bytes"`
+	Suggestions            []string `json:"suggestions"`
 }
 
 // Logs lists container log files on disk.

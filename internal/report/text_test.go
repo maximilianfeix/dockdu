@@ -121,3 +121,15 @@ func TestWriteTextHasNoTrailingSpaces(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteTextLegacyDaemonSaysNothingWasSubtracted(t *testing.T) {
+	r := goldenReport()
+	r.Summary.BuildCacheSharedBytes = 0 // df row of an API < 1.52 daemon has no shared bytes
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if out := buf.String(); !strings.Contains(out, "= df + logs (df's build cache row already leaves out 31.0 GiB shared with images)") || strings.Contains(out, "= df − 0 B") {
+		t.Fatalf("legacy summary line wrong:\n%s", out)
+	}
+}

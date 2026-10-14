@@ -121,3 +121,66 @@ func TestBuildCacheNegativePrivateIsUnknown(t *testing.T) {
 		t.Fatalf("private must be unknown (-1) when records exceed the daemon total, got %d", got.PrivateBytes)
 	}
 }
+
+// legacyCache is what moby/client v0.6.2 synthesises for daemons on API
+// < 1.52 (Docker Engine 28 and older): TotalSize and Reclaimable are
+// computed client-side from the records and leave shared records out.
+func legacyCache(api string) *engine.Snapshot {
+	return &engine.Snapshot{
+		Daemon: engine.Daemon{APIVersion: api},
+		// TotalSize = Σ !Shared = 200 + 100; Reclaimable = Σ !Shared && !InUse = 200.
+		Totals: engine.Totals{BuildCache: engine.Aggregate{TotalCount: 3, TotalSize: 300, Reclaimable: 200}},
+		BuildCache: []engine.CacheRecord{
+			rec("a", 300, true, false),
+			rec("b", 200, false, false),
+			rec("c", 100, false, true),
+		},
+	}
+}
+
+func TestBuildCacheLegacyAPITotalExcludesShared(t *testing.T) {
+	for _, api := range []string{"1.51", "1.44", ""} {
+		got, warns := BuildCache(legacyCache(api))
+		if len(warns) != 0 {
+			t.Fatalf("api %q: a legacy total is expected, not a mismatch: %v", api, warns)
+		}
+		if got.TotalBytes != 600 || got.SharedBytes != 300 || got.PrivateBytes != 300 {
+			t.Fatalf("api %q: total/shared/private = %d/%d/%d, want 600/300/300", api, got.TotalBytes, got.SharedBytes, got.PrivateBytes)
+		}
+		if got.SharedCountedInDfBytes != 0 {
+			t.Fatalf("api %q: df's build cache row has no shared bytes to subtract, got %d", api, got.SharedCountedInDfBytes)
+		}
+		if got.ReclaimableBytes != 200 || got.NotFreedByPrune != 400 {
+			t.Fatalf("api %q: reclaimable/not freed = %d/%d", api, got.ReclaimableBytes, got.NotFreedByPrune)
+		}
+	}
+}
+
+func TestBuildCacheCurrentAPICountsSharedInDf(t *testing.T) {
+	s := legacyCache("1.53")
+	s.Totals.BuildCache.TotalSize = 600 // API >= 1.52: the daemon total includes shared records
+	got, warns := BuildCache(s)
+	if len(warns) != 0 || got.TotalBytes != 600 || got.SharedCountedInDfBytes != 300 {
+		t.Fatalf("got %+v, warnings %v", got, warns)
+	}
+}
+
+func TestBuildCacheSharedSubtractionNeverExceedsDfRow(t *testing.T) {
+	// The daemon reports 0 for the row but records exist: nothing of the row
+	// can be subtracted, whatever the records say.
+	s := &engine.Snapshot{Daemon: engine.Daemon{APIVersion: "1.53"}, BuildCache: []engine.CacheRecord{rec("a", 50, true, false)}}
+	got, _ := BuildCache(s)
+	if got.SharedCountedInDfBytes != 0 {
+		t.Fatalf("shared subtracted from df must be ≤ the df row (0), got %d", got.SharedCountedInDfBytes)
+	}
+}
+
+func TestBuildLegacyDaemonSummaryDoesNotSubtractSharedTwice(t *testing.T) {
+	s := legacyCache("1.51")
+	s.Totals.Images.TotalSize = 1000
+	r := Build(s, t.TempDir(), time.Unix(0, 0), "test")
+	// df = images 1000 + build cache 300 (already without shared); no logs.
+	if r.Summary.DfReportedBytes != 1300 || r.Summary.DockerBytesTotal != 1300 || r.Summary.BuildCacheSharedBytes != 0 {
+		t.Fatalf("summary %+v", r.Summary)
+	}
+}

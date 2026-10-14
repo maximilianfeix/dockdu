@@ -55,7 +55,12 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if !s.LogBytesComplete {
 		totalNote = " (lower bound: logs incomplete)"
 	}
-	p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
+	if s.BuildCacheSharedBytes == 0 && r.BuildCache.SharedBytes > 0 {
+		// Older daemons: df's build cache row already leaves shared records out.
+		p("  Docker resources in total   %-11s = df + logs (df's build cache row already leaves out %s shared with images)%s\n", Bytes(s.DockerBytesTotal), Bytes(r.BuildCache.SharedBytes), totalNote)
+	} else {
+		p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
+	}
 	sug(s.Suggestions)
 
 	bc := r.BuildCache

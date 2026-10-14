@@ -32,8 +32,11 @@ func DfTotals(s *engine.Snapshot) report.Summary {
 }
 
 // Summarize combines df totals with measured log bytes. Shared build-cache
-// bytes are already inside the image sizes, so they are subtracted once:
-// total = df − shared build cache + logs. "Not shown by df" is the log bytes.
+// bytes that df's build cache row contains are already inside the image
+// sizes, so they are subtracted once: total = df − shared build cache +
+// logs. buildCacheSharedBytes must be BuildCache.SharedCountedInDfBytes,
+// which is 0 for daemons whose row leaves shared records out. "Not shown
+// by df" is the log bytes.
 func Summarize(df report.Summary, buildCacheSharedBytes int64, logs report.Logs) report.Summary {
 	df.LogBytes = logs.TotalBytes
 	df.LogBytesComplete = logs.Complete
