@@ -4,7 +4,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
-Nothing yet.
+### Security
+- Container log files are listed through an `os.Root` opened on the data root: a container directory replaced by a symbolic link to a place outside the data root is no longer listed (the container is reported as unmeasured). Before, dockdu could report sizes of files outside the data root (never contents). Security audit item S3.
 
 ## [0.3.2] - 2026-10-14
 

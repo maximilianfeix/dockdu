@@ -45,6 +45,16 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 	// When <root>/containers itself is not visible (Docker Desktop host run,
 	// no root access) every container would fail the same way; say it once.
 	_, rootErr := os.Stat(filepath.Join(dataRoot, "containers"))
+	// All log lookups go through an os.Root: it refuses paths, including
+	// symbolic links, that resolve outside the data root, so a container
+	// directory swapped for a symlink cannot point dockdu elsewhere.
+	var root *os.Root
+	if rootErr == nil {
+		root, rootErr = os.OpenRoot(dataRoot)
+	}
+	if root != nil {
+		defer root.Close()
+	}
 	hidden := 0
 	unreachable := func(it *report.LogItem) bool {
 		if rootErr == nil {
@@ -87,7 +97,7 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 			if unreachable(&it) {
 				break
 			}
-			measure(&it, filepath.Dir(path), filepath.Base(path), &out, &warns)
+			measure(&it, root, relTo(dataRoot, filepath.Dir(path)), filepath.Base(path), &out, &warns)
 			if it.Measured && it.Rotation == "unbounded" && it.Bytes > 0 {
 				unbounded = true
 			}
@@ -96,7 +106,7 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 			it.MaxSize = optOrDefault(c.LogOpts, "max-size", "20m (driver default)")
 			it.MaxFile = optOrDefault(c.LogOpts, "max-file", "5 (driver default)")
 			if !unreachable(&it) {
-				measure(&it, filepath.Join(dataRoot, "containers", c.ID, "local-logs"), "container.log", &out, &warns)
+				measure(&it, root, filepath.Join("containers", c.ID, "local-logs"), "container.log", &out, &warns)
 			}
 		default:
 			it.Rotation = "not on disk"
@@ -127,8 +137,8 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 
 // measure sums every regular file in dir whose name is base plus a rotation
 // suffix. Any error leaves the item unmeasured and the section incomplete.
-func measure(it *report.LogItem, dir, base string, out *report.Logs, warns *[]string) {
-	entries, err := os.ReadDir(dir)
+func measure(it *report.LogItem, root *os.Root, dir, base string, out *report.Logs, warns *[]string) {
+	entries, err := readDirIn(root, dir)
 	if err != nil {
 		it.Note = describeFSError(err)
 		out.Complete = false
@@ -145,7 +155,7 @@ func measure(it *report.LogItem, dir, base string, out *report.Logs, warns *[]st
 			continue
 		}
 		// Lstat: a symlink is not a log file and is never followed.
-		info, err := os.Lstat(filepath.Join(dir, name))
+		info, err := root.Lstat(filepath.Join(dir, name))
 		if err != nil || !info.Mode().IsRegular() {
 			continue
 		}
@@ -156,6 +166,26 @@ func measure(it *report.LogItem, dir, base string, out *report.Logs, warns *[]st
 	it.Files = files
 	it.Measured = true
 	out.TotalBytes += bytes
+}
+
+// readDirIn lists dir (relative to root) without leaving root.
+func readDirIn(root *os.Root, dir string) ([]os.DirEntry, error) {
+	f, err := root.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return f.ReadDir(-1)
+}
+
+// relTo returns path relative to base; callers have already checked with
+// underRoot that path lies inside base.
+func relTo(base, path string) string {
+	rel, err := filepath.Rel(filepath.Clean(base), filepath.Clean(path))
+	if err != nil {
+		return path
+	}
+	return rel
 }
 
 // underRoot reports whether path stays inside root after cleaning, so a

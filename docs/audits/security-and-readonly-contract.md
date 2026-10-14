@@ -51,7 +51,7 @@ Adding a mutating call now fails in two places: the guard refuses it at runtime,
 |---|---|---|---|---|
 | S1 | P2 | The container image runs as root (needed to read `root:root 0640` log files). | Keep root, but document `--read-only --cap-drop ALL --security-opt no-new-privileges` in the one-liner once tested. | Run the one-liner with those flags on Linux and Desktop. |
 | S2 | P2 | Release archives are checksummed but not signed. There is no SBOM or provenance. | GoReleaser `signs` with cosign keyless and `sboms` with syft. Needs a release-workflow change (approval). | `cosign verify-blob` on a snapshot. |
-| S3 | P3 | `ReadDir` follows symlinked directory components; a hostile `LogPath` under the root can name any file prefix in that directory. | Open the containers directory with `openat`-style walking (`os.Root`, Go ≥ 1.24) and refuse symlinked components. | Unit test with a symlinked `containers/<id>`. |
+| S3 | P3 | **Fixed (os.Root, TestLogsDoNotFollowContainerDirSymlinkOutOfRoot).** `ReadDir` followed symlinked directory components; a hostile `LogPath` under the root can name any file prefix in that directory. | Open the containers directory with `openat`-style walking (`os.Root`, Go ≥ 1.24) and refuse symlinked components. | Unit test with a symlinked `containers/<id>`. |
 | S4 | P3 | No upper bound on daemon response size. | Wrap the transport body in a limit (for example 512 MiB) or accept as is: the user chose the daemon. | Fake engine sending a 1 GiB body. |
 | S5 | P3 | `GET /containers/<id>/json` brings env vars into memory. | Accept: there is no narrower endpoint for the log config. | n/a |
 
