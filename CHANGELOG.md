@@ -4,6 +4,10 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-10-14
+
 ### Fixed
 - Docker Engine 28 and older (API < 1.52): the shared build cache is no longer subtracted twice. Those daemons already leave shared records out of df's build cache row; dockdu now detects which rule the daemon follows (`build_cache.shared_counted_in_df_bytes`, `df_row_excludes_shared`); a row matching neither rule sets `df_row_mismatch` and makes the summary a lower bound. Before, the summary was understated, private cache was wrong, and every run warned and exited 2.
 - Compose projects: the header no longer implies that image layers shared between different images are de-duplicated. `projects.image_overlap_bytes` reports by how much the summed image sizes exceed df's image row.
@@ -33,5 +37,6 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/maximilianfeix/dockdu/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maximilianfeix/dockdu/releases/tag/v0.1.0
