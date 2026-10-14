@@ -255,3 +255,4 @@ These extend the v0.1 contract without changing any existing field's meaning. Se
    - `projects.image_overlap_bytes`.
 5. **Suggestions** (extends §6.8): volume names are shell-quoted, with `--` before a leading dash; no command for names with control characters.
 6. **Inspect concurrency:** at most 4 concurrent `ContainerInspect` calls; output order unchanged.
+7. **Filesystem and `--disk`** (extends §3.2 and §5; branch `diagnose-disk`): when the data root is visible, `filesystem` reports statfs used, size and available bytes. `--disk` walks the data root with lstat only. It does not follow symlinks, counts each inode once and does not cross into other devices. It is bounded by 50M entries and 10 minutes. It reports allocated bytes per top-level entry and `outside_data_root_bytes` = used − allocated, only when the walk completed. Block counts are never subtracted from Docker's logical sizes.

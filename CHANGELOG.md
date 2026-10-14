@@ -15,6 +15,7 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - `go install github.com/maximilianfeix/dockdu/cmd/dockdu@vX.Y.Z` builds report their module version instead of `dev` (already on `main` after 0.1.0).
 
 ### Added
+- The filesystem holding the data root (used, size, free) when the data root is visible, and `--disk`: a `du -sx`-style walk of the data root (lstat only, hard links once, other filesystems not entered, bounded) that reports allocated bytes per top-level entry and the space outside the data root on the same filesystem. JSON: `filesystem`, `filesystem.data_root_on_disk`.
 - The Docker client refuses any request that is not GET/HEAD to `/_ping`, `/info`, `/system/df` or `/containers/<id>/json`, before it is sent. Regression tests run against an instrumented fake Engine API.
 - dockdu follows the docker CLI's context (DOCKER_CONTEXT, then `currentContext`) when DOCKER_HOST is unset: Colima, OrbStack, rootless Docker, Docker Desktop on Linux. `ssh://` contexts are refused with a hint.
 - `schema_version` in `--json` output, with a contract test that fails if a key disappears.

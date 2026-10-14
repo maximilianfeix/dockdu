@@ -19,7 +19,7 @@
 <a href="#docker-desktop"><img src="https://img.shields.io/badge/Docker_Desktop-141E27?style=for-the-badge" alt="Docker Desktop"></a>
 <a href="#json"><img src="https://img.shields.io/badge/JSON-141E27?style=for-the-badge" alt="JSON"></a>
 
-[Install](#install) · [What it shows](#what-it-shows) · [Docker Desktop](#docker-desktop) · [JSON](#json) · [How it measures](#how-it-measures) · [Compared](#compared) · [Trust](#trust) · [Limits](#limits) · [FAQ](#faq)
+[Install](#install) · [What it shows](#what-it-shows) · [Docker Desktop](#docker-desktop) · [JSON](#json) · [`--disk`](#disk) · [How it measures](#how-it-measures) · [Compared](#compared) · [Trust](#trust) · [Limits](#limits) · [FAQ](#faq)
 
 </div>
 
@@ -138,6 +138,38 @@ DOCKER DESKTOP
 
 The log files are inside that VM, so the host binary reports them as unmeasured. The container one-liner under [Install](#install) mounts `/var/lib/docker` read-only from inside the VM and measures them.
 
+<a id="disk"></a>
+
+## When `df -h` and Docker disagree: `--disk`
+
+Docker's numbers are logical sizes from its API. Your disk fills up in allocated blocks, and part of it may not be Docker's at all. Whenever the data root is visible (Linux as root, or the container image), dockdu prints the filesystem that holds it. When that filesystem is at least 80% full, it suggests `dockdu --disk`, which walks the data root the way `du -sx` does:
+- `lstat` only: no symlink is followed and no file is opened;
+- each hard-linked inode is counted once;
+- other filesystems, such as running containers' overlay mounts, are not entered.
+
+It then reports what each top-level directory occupies and how much of the same filesystem lies outside the data root. Real output from a disposable Docker Engine 28.5 daemon after `scripts/demo-up.sh`:
+
+```text
+  data root filesystem        2.2 GiB     used of 223.6 GiB · 210.0 GiB free (allocated blocks, a different measure)
+
+DATA ROOT ON DISK  (/var/lib/docker · allocated blocks · 806 entries · complete)
+  ENTRY (top 8 of 12)  ON DISK    ENTRIES
+  containers           109.4 MiB  43
+  overlay2             73.1 MiB   651
+  volumes              32.0 MiB   8
+  buildkit             500.0 KiB  21
+  ...
+  data root on disk           215.6 MiB
+  outside the data root       2.0 GiB     on the same filesystem, not under /var/lib/docker (approximate: includes filesystem metadata)
+  4 mount(s) inside the data root not entered (overlay mounts of running containers, separately mounted volumes)
+```
+
+What the result tells you:
+- **`outside the data root` is large:** the full disk is mostly not Docker's.
+- **`overlay2` or `containerd` is far larger than images + containers + build cache:** the data root holds layers or content the API does not list. Leftovers from crashes, and on the containerd image store the compressed content kept next to the unpacked snapshots.
+
+dockdu shows the logical sizes and the block counts side by side and never subtracts one from the other. The walk is bounded by 50 million entries and 10 minutes; on a 300,000-file tree it took 1.3–1.5 s and 16–18 MB of memory (`du -sx`: about 1 s). A directory it cannot read, or a budget that runs out, makes the result a lower bound with a warning.
+
 <a id="json"></a>
 
 ## JSON
@@ -157,7 +189,7 @@ dockdu --json | jq '.build_cache | {total_bytes, shared_bytes, reclaimable_bytes
 dockdu --json | jq '{complete: .summary.complete, logs: .summary.log_bytes_complete, unknown_volumes: .summary.volume_sizes_unknown, warnings}'
 ```
 
-Flags: `--top N` rows per section in text output (default 10, 0 for all), `--data-root PATH` when the daemon's data root is mounted somewhere else, `--no-desktop`, `--version`. Exit codes: `0` report complete, `1` cannot reach the daemon, `2` report rendered with warnings, `64` usage error.
+Flags: `--top N` rows per section in text output (default 10, 0 for all), `--disk` to measure the data root on disk (see above), `--data-root PATH` when the daemon's data root is mounted somewhere else, `--no-desktop`, `--version`. `filesystem` (and `filesystem.data_root_on_disk` with `--disk`) appear only when the data root is visible. Exit codes: `0` report complete, `1` cannot reach the daemon, `2` report rendered with warnings, `64` usage error.
 
 <a id="how-it-measures"></a>
 
@@ -211,7 +243,7 @@ Checked against each tool's current docs or source on 2026-10-14; details and so
 - Only the daemon's built-in BuildKit builder is counted; named `docker buildx` builders keep their cache in their own volume, which shows up under volumes.
 - Podman is not tested.
 - Numbers are resource sizes as Docker reports them, with shared layers counted once. They are not disk-block counts and will not match `du` exactly.
-- Disk space Docker's API does not report is not attributed: overlay2 directories left behind by crashes, and with the containerd image store the compressed content kept next to unpacked snapshots. If dockdu's total is far below what `du -sx /var/lib/docker /var/lib/containerd` shows, that is where the rest is.
+- Disk space Docker's API does not report is not attributed: overlay2 directories left behind by crashes, and with the containerd image store the compressed content kept next to unpacked snapshots. `dockdu --disk` shows how much the data root occupies on disk next to Docker's numbers; it does not say which layer belongs to what.
 
 <a id="faq"></a>
 
