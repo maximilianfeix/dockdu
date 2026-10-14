@@ -57,22 +57,27 @@ See `docs/SPIKE.md`, section "Spec amendments proposed in this PR" (6.1, 6.4, 6.
 - Image `alpine:3.22` (kept for the integration test).
 Remove containers and volumes by ID/name after checking the label; never prune.
 
-## State on 2026-10-14 (night)
+## State on 2026-10-14 (late night)
 
-- **v0.2.0 is released:**
-  - GitHub release;
-  - ghcr.io images `v0.2.0` and `latest` (amd64 and arm64);
-  - Homebrew cask 0.2.0;
-  - `go install @v0.2.0`.
+- **Released:** v0.3.0 (containerd prune fix, `--disk`), v0.3.1 (80-column output, least-privilege workflows, x/sys v0.44.0) and v0.3.2 (unit-wrap fix). All three are verified: archives with checksums, ghcr, cask, `go install`, brew.
+- **`main` is protected** by ruleset 25113118: PR required; `test`, `integration` and `analyze` must pass; no force push or deletion.
+- **Launch:**
+  - dev.to article published;
+  - awesome-docker#1578 and awesome-cli-apps-in-a-csv#509 open;
+  - Terminal Trove form partly filled (blocked);
+  - Reddit unreachable from the tooling;
+  - emails drafted only.
 
-  Verification: `docs/verification/release-v0.2.0.md`.
-- **`main` after v0.2.0:** the launch kit (#26) and `--disk` (#27, unreleased, listed under [Unreleased]).
+  Full log: `docs/growth/overnight-log.md`.
+- **Scorecard:** token permissions and x/sys fixed (#32). BranchProtection should clear with the ruleset. CodeReview, Maintained and CII badge remain; they depend on the process and the project's age.
 
 ## Next executable steps
 
-1. Replace the deprecated cask `postflight` with `postflight_steps` (GoReleaser `custom_block` or a newer GoReleaser), and check it with `brew audit --cask` / `brew style`.
-2. Run `--disk` on a real Linux host with a large data root, then release v0.3.0 via `docs/RELEASING.md`.
-3. Launch steps in `docs/growth/launch-kit/` (written by the maintainer): awesome-docker PR, console.dev email, the article.
+1. Watch awesome-docker#1578 and cli-apps#509 and answer reviewers the same day.
+2. One X post (text in overnight-log.md) when the account has not posted for a few hours; no repeats.
+3. Weekly measurement (docs/growth/measurement.md). Don't count the agent's own downloads.
+4. Homebrew `postflight` deprecation: switch to `postflight_steps` once GoReleaser supports it, or use `custom_block`.
+5. Finish the Terminal Trove form by hand; send the Console.dev email (text in launch-kit/submissions.md).
 
 ## Test status of the v0.2 branch (release validation 2026-10-14)
 
