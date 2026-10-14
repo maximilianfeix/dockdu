@@ -35,7 +35,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			p("%s%s\n", first, text)
 			return
 		}
-		for i, l := range wrapTokens(strings.Fields(text), " ", textWidth-runeLen(first), textWidth-runeLen(cont)) {
+		for i, l := range wrapTokens(words(text), " ", textWidth-runeLen(first), textWidth-runeLen(cont)) {
 			if i == 0 {
 				p("%s%s\n", first, l)
 			} else {
@@ -113,7 +113,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		partial = append(partial, "build cache row disagrees with its records")
 	}
 	if r.BuildCache.SharedMayBeFreedByPrune && s.BuildCacheSharedBytes > 0 {
-		partial = append(partial, "shared build cache may keep its own copy (containerd image store)")
+		partial = append(partial, "shared build cache may keep its own copy (containerd store)")
 	}
 	if s.VolumeSizesUnknown > 0 {
 		partial = append(partial, fmt.Sprintf("%d volume size(s) unknown", s.VolumeSizesUnknown))

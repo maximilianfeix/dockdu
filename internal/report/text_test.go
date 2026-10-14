@@ -228,7 +228,7 @@ func TestWriteTextContainerdStorePruneEffectUnknown(t *testing.T) {
 	}
 	out := flat(buf.String())
 	if strings.Contains(out, "prune would NOT free") || !strings.Contains(out, "prune frees an unknown part of the 31.0 GiB shared with images") ||
-		!strings.Contains(out, "shared build cache may keep its own copy (containerd image store)") {
+		!strings.Contains(out, "shared build cache may keep its own copy (containerd store)") {
 		t.Fatalf("containerd store wording missing:\n%s", out)
 	}
 }
@@ -275,6 +275,9 @@ func TestWriteTextProseFitsEightyColumns(t *testing.T) {
 			if strings.HasPrefix(line, "  → ") || strings.Contains(line, "com.docker.docker/Data/vms") {
 				continue // copyable commands and a single path token are exempt
 			}
+			if f := strings.Fields(line); len(f) > 0 && units[f[0]] {
+				t.Errorf("legacy=%v line %d starts with a unit split from its number:\n%s", legacy, i+1, line)
+			}
 			if n := runeLen(line); n > textWidth {
 				t.Errorf("legacy=%v line %d has %d columns (max %d):\n%s", legacy, i+1, n, textWidth, line)
 			}
@@ -299,5 +302,30 @@ func TestWrapTokensNeverSplitsATokenAndRespectsWidths(t *testing.T) {
 	}
 	if long := wrapTokens([]string{strings.Repeat("x", 100)}, " ", 10, 10); len(long) != 1 || runeLen(long[0]) != 100 {
 		t.Errorf("a token longer than the width must stay whole: %q", long)
+	}
+}
+
+func TestWordsKeepsNumberAndUnitTogether(t *testing.T) {
+	got := words("In use, never freed: 0 B and 140.7 MiB, (12.0 KiB) B-trees 3 B.")
+	want := []string{"In", "use,", "never", "freed:", "0 B", "and", "140.7 MiB,", "(12.0 KiB)", "B-trees", "3 B."}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("got %q\nwant %q", got, want)
+	}
+}
+
+// Values from the v0.3.1 demo on Engine 29.9 (docs/verification), where the
+// wrapped build cache note ended a line with "0" and began the next with "B".
+func TestWriteTextDemoValuesNeverSplitAUnit(t *testing.T) {
+	r := goldenReport()
+	r.BuildCache = BuildCache{Records: 4, TotalBytes: 147526000, SharedBytes: 147526000, PrivateBytes: 12288,
+		ReclaimableBytes: 12288, NotFreedByPrune: -1, SharedMayBeFreedByPrune: true, SharedCountedInDfBytes: 147526000}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(buf.String(), "\n") {
+		if f := strings.Fields(line); len(f) > 0 && units[strings.TrimRight(f[0], ".,;:)")] {
+			t.Errorf("line %d starts with a unit split from its number:\n%s", i+1, line)
+		}
 	}
 }

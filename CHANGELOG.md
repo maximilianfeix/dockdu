@@ -6,6 +6,11 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 Nothing yet.
 
+## [0.3.2] - 2026-10-14
+
+### Fixed
+- Wrapped text no longer splits a size from its unit (v0.3.1 printed "In use, never freed: 0" and "B" on the next line). The containerd lower-bound note fits on one line.
+
 ## [0.3.1] - 2026-10-14
 
 ### Security
@@ -53,7 +58,8 @@ Nothing yet.
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/maximilianfeix/dockdu/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/maximilianfeix/dockdu/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maximilianfeix/dockdu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maximilianfeix/dockdu/compare/v0.1.0...v0.2.0
