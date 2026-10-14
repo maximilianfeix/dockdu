@@ -73,6 +73,7 @@ func (m *Moby) Snapshot(ctx context.Context) (*Snapshot, error) {
 			LoggingDriver:         infoRes.Info.LoggingDriver,
 			DataRoot:              infoRes.Info.DockerRootDir,
 			ContainerdSnapshotter: containerdSnapshotter(infoRes.Info.DriverStatus),
+			Rootless:              rootless(infoRes.Info.SecurityOptions),
 		},
 		Totals: Totals{
 			Images:     Aggregate{du.Images.ActiveCount, du.Images.TotalCount, du.Images.Reclaimable, du.Images.TotalSize},
@@ -187,6 +188,19 @@ func containerdSnapshotter(status [][2]string) bool {
 	for _, kv := range status {
 		if kv[0] == "driver-type" && kv[1] == "io.containerd.snapshotter.v1" {
 			return true
+		}
+	}
+	return false
+}
+
+// rootless reports whether the daemon runs in rootless mode, which it
+// announces as the security option "name=rootless".
+func rootless(securityOptions []string) bool {
+	for _, o := range securityOptions {
+		for _, kv := range strings.Split(o, ",") {
+			if kv == "name=rootless" {
+				return true
+			}
 		}
 	}
 	return false

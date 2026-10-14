@@ -42,6 +42,9 @@ type Daemon struct {
 	// fresh Engine 29 installs and Docker Desktop) or "graphdriver"
 	// (overlay2 and other graph drivers). Build cache accounting differs.
 	ImageStore string `json:"image_store"`
+	// Rootless is true for a rootless daemon, whose configuration lives in
+	// ~/.config/docker/daemon.json instead of /etc/docker/daemon.json.
+	Rootless bool `json:"rootless"`
 	// ReportedDataRoot is the daemon\'s own data root when --data-root
 	// overrode it; DataRoot is then the path dockdu actually read.
 	ReportedDataRoot string `json:"reported_data_root,omitempty"`

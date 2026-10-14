@@ -130,7 +130,11 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 		return a.Name < b.Name
 	})
 	if unbounded {
-		out.Suggestions = append(out.Suggestions, report.SuggestLogOptsDaemon, report.SuggestLogOptsContainer)
+		daemonJSON := report.SuggestLogOptsDaemon
+		if s.Daemon.Rootless {
+			daemonJSON = report.SuggestLogOptsDaemonRootless
+		}
+		out.Suggestions = append(out.Suggestions, daemonJSON, report.SuggestLogOptsContainer)
 	}
 	return out, warns
 }

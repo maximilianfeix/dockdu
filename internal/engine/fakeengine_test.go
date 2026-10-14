@@ -279,3 +279,13 @@ func TestContainerdSnapshotterFromDriverStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestRootlessFromSecurityOptions(t *testing.T) {
+	// Observed values: docker:29-dind-rootless and docker:29-dind.
+	if !rootless([]string{"name=seccomp,profile=builtin", "name=rootless", "name=cgroupns"}) {
+		t.Fatal("rootless daemon not detected")
+	}
+	if rootless([]string{"name=seccomp,profile=builtin", "name=cgroupns"}) || rootless(nil) {
+		t.Fatal("root daemon detected as rootless")
+	}
+}

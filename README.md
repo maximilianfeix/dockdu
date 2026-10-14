@@ -44,7 +44,7 @@ docker run --rm \
   ghcr.io/maximilianfeix/dockdu
 ```
 
-With Colima, OrbStack, rootless Docker or any other `docker context`, dockdu connects to the same daemon the `docker` CLI uses (DOCKER_HOST, then DOCKER_CONTEXT, then the current context).
+With Colima, OrbStack, rootless Docker or any other `docker context`, dockdu connects to the same daemon the `docker` CLI uses (DOCKER_HOST, then DOCKER_CONTEXT, then the current context). Rootless Docker is tested end to end: run dockdu as the same user, and it reads the data root under `~/.local/share/docker` without root.
 
 ### Why
 

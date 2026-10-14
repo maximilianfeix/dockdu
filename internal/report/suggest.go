@@ -10,13 +10,14 @@ import (
 // Suggestions are printed as text and never executed. None of them touches
 // volumes: a volume holds data that no other Docker object reproduces.
 const (
-	SuggestBuilderPruneOld    = "docker builder prune --filter until=168h   # unused build cache older than 7 days"
-	SuggestBuilderPruneAll    = "docker builder prune -a                    # all build cache not in use (next build is slower)"
-	SuggestImagePruneDangling = "docker image prune                         # untagged (<none>) images only"
-	SuggestImagePruneAll      = "docker image prune -a                      # removes EVERY image no container uses, including locally built ones that cannot be re-pulled"
-	SuggestLogOptsDaemon      = `set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only`
-	SuggestDiskWalk           = "dockdu --disk   # read-only: measures what the data root occupies on disk, to tell Docker's share of this filesystem from everything else (walks every file; can take minutes)"
-	SuggestLogOptsContainer   = "recreate the container with --log-opt max-size=10m --log-opt max-file=3   # or --log-driver local"
+	SuggestBuilderPruneOld       = "docker builder prune --filter until=168h   # unused build cache older than 7 days"
+	SuggestBuilderPruneAll       = "docker builder prune -a                    # all build cache not in use (next build is slower)"
+	SuggestImagePruneDangling    = "docker image prune                         # untagged (<none>) images only"
+	SuggestImagePruneAll         = "docker image prune -a                      # removes EVERY image no container uses, including locally built ones that cannot be re-pulled"
+	SuggestLogOptsDaemon         = `set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only`
+	SuggestDiskWalk              = "dockdu --disk   # read-only: measures what the data root occupies on disk, to tell Docker's share of this filesystem from everything else (walks every file; can take minutes)"
+	SuggestLogOptsDaemonRootless = `set "log-opts" in ~/.config/docker/daemon.json (rootless daemon): {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only`
+	SuggestLogOptsContainer      = "recreate the container with --log-opt max-size=10m --log-opt max-file=3   # or --log-driver local"
 )
 
 // SuggestVolumeRm formats the single-volume removal hint. There is no

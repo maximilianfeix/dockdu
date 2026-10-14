@@ -4,6 +4,9 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+- Rootless daemons (detected from `SecurityOptions` `name=rootless`, reported as `daemon.rootless`): the log rotation hint names `~/.config/docker/daemon.json` instead of `/etc/docker/daemon.json`. Verified on `docker:29-dind-rootless`, where dockdu followed a CLI-created context and measured the logs as uid 1000.
+
 ### Security
 - Container log files are listed through an `os.Root` opened on the data root: a container directory replaced by a symbolic link to a place outside the data root is no longer listed (the container is reported as unmeasured). Before, dockdu could report sizes of files outside the data root (never contents). Security audit item S3.
 
