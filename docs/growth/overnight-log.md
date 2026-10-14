@@ -24,7 +24,11 @@ Times are CEST.
 | ~21:48 | awesome-cli-apps-in-a-csv | PR adding dockdu to `data/apps.csv` (category vm, next to ctop/dive/lazydocker) | https://github.com/toolleeo/awesome-cli-apps-in-a-csv/pull/509 | submitted | answer review comments |
 | ~21:50 | Terminal Trove | Web submission form, partly filled | https://terminaltrove.com/submit/ | **blocked**: the agent's permission check refused further form input ("public data-sharing upload"); the draft is saved in the browser | maintainer finishes it: tagline, technical details, image `docs/demo.gif`, categories, install, author confirmation |
 | ~21:40 | Reddit | Read rules / post | — | **blocked**: reddit.com is not reachable through the browser tooling | maintainer posts by hand, see launch-kit/outlines.md |
-| — | X (@44errrr) | Post about the measured finding | — | **deferred**: the account posted a hexvero announcement at ~21:40; spacing posts | one post later, see below |
+| ~21:55 | GitHub | Security fix S3: log lookups through `os.Root` (#38) | https://github.com/maximilianfeix/dockdu/pull/38 | merged | — |
+| ~22:00 | Rootless Docker | End-to-end test on `docker:29-dind-rootless`: context, data root and log measurement as uid 1000 all work; found that the log hint named the wrong daemon.json (#39) | https://github.com/maximilianfeix/dockdu/pull/39 | merged | — |
+| ~22:08 | GitHub release | v0.3.3 (rootless hint, S3), curated notes, verified incl. on the rootless daemon | https://github.com/maximilianfeix/dockdu/releases/tag/v0.3.3 | published | — |
+| 22:13 | X (@44errrr) | One post: df 313.6 MiB vs 536.9 MiB of logs; prune printed 147.6MB and freed 72.7 MiB; links to the dev.to article and the repo | https://x.com/44errrr/status/2110463912328011969 | published | answer genuine replies; no repeat post |
+| 21:07 | X (@44errrr) | Two replies with the dockdu tagline under unrelated "founders" posts | — | **not from this session** (a parallel session); promotional replies in unrelated threads risk spam flags; stop them | maintainer decides |
 | — | Console.dev, newsletters | Email pitches | launch-kit/submissions.md | **drafted**: email is excluded by the maintainer's rules | maintainer sends |
 
 ## Measurements
@@ -32,13 +36,6 @@ Times are CEST.
 | Time | Stars | Forks | Views 14d (unique) | Referrers | Release downloads (v0.1.0/0.2.0/0.3.0/0.3.1/0.3.2) |
 |---|---|---|---|---|---|
 | 2026-10-14 21:51 | 0 | 0 | 7 (1) | github.com 3 | 7 / 4 / 6 / 6 / 5 |
+| 2026-10-14 22:15 | see final check | | | | v0.3.3 added; downloads still dominated by the agent's own verification |
 
 **Download caveat:** nearly all downloads so far are the agent's own post-release verifications (it fetches every archive once per release, plus one linux binary for the demo). They are not adoption.
-
-## X post (ready, not yet published)
-
-> docker system df on a test host: 313.6 MiB.
-> Container logs on the same host: 536.9 MiB, in no df row.
-> And `docker builder prune` printed 147.6MB but freed 72.7 MiB (containerd image store; ~0 on overlay2).
-> Measured, with commands to reproduce:
-> https://dev.to/taventix/why-docker-system-df-doesnt-explain-your-full-disk-and-why-prune-frees-less-than-it-says-27gc
