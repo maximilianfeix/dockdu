@@ -140,7 +140,7 @@ func TestSuggestVolumeRmQuotesDaemonNames(t *testing.T) {
 		"x; rm -rf ~":     "docker volume rm 'x; rm -rf ~'   #",
 		"it's":            `docker volume rm 'it'\''s'   #`,
 		"$(touch /tmp/p)": "docker volume rm '$(touch /tmp/p)'   #",
-		"-rf":             "docker volume rm '-rf'   #",
+		"-rf":             "docker volume rm -- '-rf'   #",
 	}
 	for name, prefix := range cases {
 		if got := SuggestVolumeRm(name); !strings.HasPrefix(got, prefix) {
