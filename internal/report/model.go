@@ -58,6 +58,12 @@ type Summary struct {
 	// Shared layers are counted once, as df does: a resource total, not a
 	// disk-block count.
 	DockerBytesTotal int64 `json:"docker_bytes_total"`
+	// VolumeSizesUnknown counts volumes whose size the daemon did not report
+	// (non-local drivers); df and the total leave them out.
+	VolumeSizesUnknown int `json:"volume_sizes_unknown"`
+	// Complete is false when the total is a lower bound: logs not fully
+	// measured or volume sizes unknown.
+	Complete bool `json:"complete"`
 	// NotShownByDf is the log bytes: the only part df does not report.
 	NotShownByDf int64    `json:"not_shown_by_df_bytes"`
 	Suggestions  []string `json:"suggestions"`
@@ -115,7 +121,13 @@ type Projects struct {
 	Items            []Project `json:"items"`
 	TotalBytes       int64     `json:"total_bytes"`
 	SharedImageBytes int64     `json:"shared_image_bytes"`
-	Suggestions      []string  `json:"suggestions"`
+	// ImageOverlapBytes is how much the image sizes summed here exceed df's
+	// image row, which counts every layer once: a lower bound for base
+	// layers shared between different images. Project image columns use
+	// per-image sizes, so they are not additive by this much. 0 when df's
+	// image row is not larger or not reported.
+	ImageOverlapBytes int64    `json:"image_overlap_bytes"`
+	Suggestions       []string `json:"suggestions"`
 }
 
 // Project is one compose project (or the "(none)" bucket).

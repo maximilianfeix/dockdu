@@ -51,9 +51,16 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		logNote += " · incomplete, lower bound (see CONTAINER LOGS)"
 	}
 	p("  container logs on disk      %-11s %s\n", Bytes(s.LogBytes), logNote)
-	totalNote := ""
+	var partial []string
 	if !s.LogBytesComplete {
-		totalNote = " (lower bound: logs incomplete)"
+		partial = append(partial, "logs incomplete")
+	}
+	if s.VolumeSizesUnknown > 0 {
+		partial = append(partial, fmt.Sprintf("%d volume size(s) unknown", s.VolumeSizesUnknown))
+	}
+	totalNote := ""
+	if len(partial) > 0 {
+		totalNote = " (lower bound: " + strings.Join(partial, ", ") + ")"
 	}
 	if s.BuildCacheSharedBytes == 0 && r.BuildCache.SharedBytes > 0 {
 		// Older daemons: df's build cache row already leaves shared records out.
@@ -106,7 +113,10 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	sug(lg.Suggestions)
 
 	pr := r.Projects
-	p("\nCOMPOSE PROJECTS  (total %s · shared images counted once: %s)\n", Bytes(pr.TotalBytes), Bytes(pr.SharedImageBytes))
+	p("\nCOMPOSE PROJECTS  (total %s · images used by several projects counted once: %s)\n", Bytes(pr.TotalBytes), Bytes(pr.SharedImageBytes))
+	if pr.ImageOverlapBytes > 0 {
+		p("  image sizes include base layers shared between images: they overlap by at least %s, so IMAGES and TOTAL are not additive\n", Bytes(pr.ImageOverlapBytes))
+	}
 	if len(pr.Items) > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  PROJECT\tCONTAINERS\tIMAGES\tSHARED IMAGES\tVOLUMES\tLOGS\tTOTAL\tNOTES")

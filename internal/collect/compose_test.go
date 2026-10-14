@@ -183,3 +183,27 @@ func TestVolumesDuplicateNamesCountedOnce(t *testing.T) {
 		t.Fatalf("duplicates must count once: %+v", got)
 	}
 }
+
+func TestProjectsReportImageLayerOverlap(t *testing.T) {
+	// Two images built FROM the same 400-byte base: df counts the base once
+	// (600 bytes of layers), per-image sizes count it twice (1000).
+	s := &engine.Snapshot{
+		Totals: engine.Totals{Images: engine.Aggregate{TotalSize: 600}},
+		Images: []engine.Image{
+			{ID: "a", RepoTags: []string{"a:1"}, Size: 500, SharedSize: 400, Containers: 1},
+			{ID: "b", RepoTags: []string{"b:1"}, Size: 500, SharedSize: 400, Containers: 1},
+		},
+		Containers: []engine.Container{
+			{ID: "c1", ImageID: "a", Labels: map[string]string{projLabel: "p1"}},
+			{ID: "c2", ImageID: "b", Labels: map[string]string{projLabel: "p2"}},
+		},
+	}
+	got, _ := Projects(s, report.Logs{Complete: true}, time.Unix(0, 0))
+	if got.ImageOverlapBytes != 400 {
+		t.Fatalf("overlap = %d, want 400 (1000 summed − 600 in df)", got.ImageOverlapBytes)
+	}
+	s.Totals.Images.TotalSize = 0 // df row unknown/empty: no claim
+	if got, _ := Projects(s, report.Logs{Complete: true}, time.Unix(0, 0)); got.ImageOverlapBytes != 0 {
+		t.Fatalf("without a df image total there is no overlap claim, got %d", got.ImageOverlapBytes)
+	}
+}

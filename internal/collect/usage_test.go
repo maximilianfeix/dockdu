@@ -2,6 +2,7 @@ package collect
 
 import (
 	"testing"
+	"time"
 
 	"github.com/maximilianfeix/dockdu/internal/engine"
 	"github.com/maximilianfeix/dockdu/internal/report"
@@ -50,5 +51,17 @@ func TestDfTotalsFromRecordedFixture(t *testing.T) {
 	}
 	if len(s.Containers) == 0 || s.Containers[0].LogDriver == "" {
 		t.Fatalf("fixture should carry inspected log driver, got %+v", s.Containers)
+	}
+}
+
+func TestBuildMarksSummaryIncompleteWhenVolumeSizesUnknown(t *testing.T) {
+	s := &engine.Snapshot{Volumes: []engine.Volume{{Name: "nfs", Driver: "nfs", Size: -1, RefCount: -1}}}
+	r := Build(s, t.TempDir(), time.Unix(0, 0), "test")
+	if r.Summary.Complete || r.Summary.VolumeSizesUnknown != 1 {
+		t.Fatalf("an unknown volume size makes the total a lower bound: %+v", r.Summary)
+	}
+	r = Build(&engine.Snapshot{}, t.TempDir(), time.Unix(0, 0), "test")
+	if !r.Summary.Complete {
+		t.Fatalf("empty snapshot is complete: %+v", r.Summary)
 	}
 }
