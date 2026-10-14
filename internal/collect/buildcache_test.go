@@ -242,3 +242,36 @@ func TestBuildCacheMismatchMakesSummaryIncomplete(t *testing.T) {
 		t.Fatalf("legacy rule must be recognised, got %+v", legacy)
 	}
 }
+
+// Measured 2026-10-14 on disposable daemons: after `docker builder prune
+// -af`, Engine 28.5 (overlay2) freed ~0 of 64 MiB of shared records, while
+// Engine 29.9 with the containerd image store freed 72.7 of 140.7 MiB.
+func TestBuildCacheContainerdStoreMakesPruneEffectUnknown(t *testing.T) {
+	for _, d := range []engine.Daemon{
+		{APIVersion: "1.56", ContainerdSnapshotter: true},
+		{APIVersion: "1.53", StorageDriver: "overlayfs"}, // snapshots recorded before DriverStatus was read
+	} {
+		s := legacyCache("1.56")
+		s.Daemon = d
+		s.Totals.BuildCache.TotalSize = 600
+		got, warns := BuildCache(s)
+		if !got.SharedMayBeFreedByPrune || got.NotFreedByPrune != -1 || len(warns) != 0 {
+			t.Fatalf("%+v: shared on the containerd store must make the prune effect unknown without a warning: %+v %v", d, got, warns)
+		}
+		r := Build(s, t.TempDir(), time.Unix(0, 0), "test")
+		if r.Summary.Complete || r.Daemon.ImageStore != "containerd" {
+			t.Fatalf("%+v: summary must be a lower bound on the containerd store: %+v %+v", d, r.Summary, r.Daemon)
+		}
+	}
+	// Without shared records nothing is uncertain.
+	s := &engine.Snapshot{Daemon: engine.Daemon{ContainerdSnapshotter: true},
+		Totals:     engine.Totals{BuildCache: engine.Aggregate{TotalSize: 100, Reclaimable: 100}},
+		BuildCache: []engine.CacheRecord{rec("p", 100, false, false)}}
+	if got, _ := BuildCache(s); got.SharedMayBeFreedByPrune || got.NotFreedByPrune != 0 {
+		t.Fatalf("no shared records, nothing uncertain: %+v", got)
+	}
+	// overlay2 keeps the exact figure.
+	if got, _ := BuildCache(legacyCache("1.51")); got.SharedMayBeFreedByPrune || got.NotFreedByPrune != 400 {
+		t.Fatalf("graph driver keeps the exact not-freed figure: %+v", got)
+	}
+}

@@ -8,12 +8,14 @@
 .build_cache.records
 .build_cache.shared_bytes
 .build_cache.shared_counted_in_df_bytes
+.build_cache.shared_may_be_freed_by_prune
 .build_cache.suggestions
 .build_cache.total_bytes
 .daemon
 .daemon.api_version
 .daemon.data_root
 .daemon.host
+.daemon.image_store
 .daemon.logging_driver
 .daemon.operating_system
 .daemon.reported_data_root

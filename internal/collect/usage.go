@@ -14,7 +14,23 @@ func Daemon(s *engine.Snapshot) report.Daemon {
 		Host: s.Daemon.Host, ServerVersion: s.Daemon.ServerVersion, APIVersion: s.Daemon.APIVersion,
 		OperatingSystem: s.Daemon.OperatingSystem, StorageDriver: s.Daemon.StorageDriver,
 		LoggingDriver: s.Daemon.LoggingDriver, DataRoot: s.Daemon.DataRoot,
+		ImageStore: imageStore(s),
 	}
+}
+
+// containerdStore reports whether the daemon uses the containerd image
+// store. Snapshots recorded before dockdu read DriverStatus only carry the
+// driver name; "overlayfs" is the containerd snapshotter's name, while the
+// graph driver is "overlay2".
+func containerdStore(s *engine.Snapshot) bool {
+	return s.Daemon.ContainerdSnapshotter || s.Daemon.StorageDriver == "overlayfs"
+}
+
+func imageStore(s *engine.Snapshot) string {
+	if containerdStore(s) {
+		return "containerd"
+	}
+	return "graphdriver"
 }
 
 // DfTotals fills the `docker system df` part of the summary from the

@@ -65,13 +65,14 @@ func (m *Moby) Snapshot(ctx context.Context) (*Snapshot, error) {
 		Volumes:    []Volume{},
 		BuildCache: []CacheRecord{},
 		Daemon: Daemon{
-			Host:            m.cli.DaemonHost(),
-			ServerVersion:   infoRes.Info.ServerVersion,
-			APIVersion:      m.cli.ClientVersion(),
-			OperatingSystem: infoRes.Info.OperatingSystem,
-			StorageDriver:   infoRes.Info.Driver,
-			LoggingDriver:   infoRes.Info.LoggingDriver,
-			DataRoot:        infoRes.Info.DockerRootDir,
+			Host:                  m.cli.DaemonHost(),
+			ServerVersion:         infoRes.Info.ServerVersion,
+			APIVersion:            m.cli.ClientVersion(),
+			OperatingSystem:       infoRes.Info.OperatingSystem,
+			StorageDriver:         infoRes.Info.Driver,
+			LoggingDriver:         infoRes.Info.LoggingDriver,
+			DataRoot:              infoRes.Info.DockerRootDir,
+			ContainerdSnapshotter: containerdSnapshotter(infoRes.Info.DriverStatus),
 		},
 		Totals: Totals{
 			Images:     Aggregate{du.Images.ActiveCount, du.Images.TotalCount, du.Images.Reclaimable, du.Images.TotalSize},
@@ -177,6 +178,18 @@ feed:
 		return fatalErr
 	}
 	return ctx.Err()
+}
+
+// containerdSnapshotter reports whether DriverStatus names the containerd
+// snapshotter, which is how the daemon says it uses the containerd image
+// store.
+func containerdSnapshotter(status [][2]string) bool {
+	for _, kv := range status {
+		if kv[0] == "driver-type" && kv[1] == "io.containerd.snapshotter.v1" {
+			return true
+		}
+	}
+	return false
 }
 
 func wrapConn(op string, err error) error {
