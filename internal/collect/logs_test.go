@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/maximilianfeix/dockdu/internal/engine"
+	"github.com/maximilianfeix/dockdu/internal/report"
 )
 
 func writeFile(t *testing.T, path string, size int) {
@@ -223,5 +224,25 @@ func TestLogsDoNotFollowContainerDirSymlinkOutOfRoot(t *testing.T) {
 	got, _ := Logs(s, root)
 	if it := got.Items[0]; it.Measured || it.Bytes != -1 || got.Complete {
 		t.Fatalf("a symlink escaping the data root must leave the container unmeasured, got %+v", it)
+	}
+}
+
+// Observed on docker:29-dind-rootless: a rootless daemon reads
+// ~/.config/docker/daemon.json, so the log-opts hint must name that file.
+func TestLogsRootlessDaemonSuggestsUserDaemonJSON(t *testing.T) {
+	root := t.TempDir()
+	id := "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	writeFile(t, filepath.Join(root, "containers", id, id+"-json.log"), 100)
+	for _, rootless := range []bool{false, true} {
+		s := &engine.Snapshot{Daemon: engine.Daemon{Rootless: rootless},
+			Containers: []engine.Container{{ID: id, Name: "chatty", LogDriver: "json-file"}}}
+		got, _ := Logs(s, root)
+		want := report.SuggestLogOptsDaemon
+		if rootless {
+			want = report.SuggestLogOptsDaemonRootless
+		}
+		if len(got.Suggestions) == 0 || got.Suggestions[0] != want {
+			t.Fatalf("rootless=%v: suggestions %q", rootless, got.Suggestions)
+		}
 	}
 }

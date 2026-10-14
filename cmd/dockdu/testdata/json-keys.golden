@@ -19,6 +19,7 @@
 .daemon.logging_driver
 .daemon.operating_system
 .daemon.reported_data_root
+.daemon.rootless
 .daemon.server_version
 .daemon.storage_driver
 .filesystem

@@ -14,7 +14,7 @@ func Daemon(s *engine.Snapshot) report.Daemon {
 		Host: s.Daemon.Host, ServerVersion: s.Daemon.ServerVersion, APIVersion: s.Daemon.APIVersion,
 		OperatingSystem: s.Daemon.OperatingSystem, StorageDriver: s.Daemon.StorageDriver,
 		LoggingDriver: s.Daemon.LoggingDriver, DataRoot: s.Daemon.DataRoot,
-		ImageStore: imageStore(s),
+		ImageStore: imageStore(s), Rootless: s.Daemon.Rootless,
 	}
 }
 

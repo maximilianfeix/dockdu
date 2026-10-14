@@ -56,7 +56,7 @@ Connecting to a daemon is not the same as seeing its files.
 |---|---|---|---|
 | Linux host, root | ✔ | ✔ | n/a |
 | Linux host, user in `docker` group | ✔ | ✘ (0640 root files) → unmeasured, one warning | n/a |
-| Rootless Docker (context or DOCKER_HOST) | ✔ (context support, **tested only with synthetic context files**) | ✔ when the data root under `~/.local/share/docker` is readable by the user (**NOT RUN**) | n/a |
+| Rootless Docker (context or DOCKER_HOST) | ✔ **tested 2026-10-14** on `docker:29-dind-rootless`: CLI-created context followed, data root `~/.local/share/docker` | ✔ measured as uid 1000 (3.1 MiB, `du`: 3.1M); log-opts hint names `~/.config/docker/daemon.json` | n/a |
 | Docker Desktop macOS, host binary | ✔ | ✘ inside VM → one warning | ✔ |
 | Docker Desktop macOS, container image | ✔ | ✔ (VM's `/var/lib/docker` mounted read-only) | ✘ (by design) |
 | Colima / OrbStack via context | ✔ (**not tested on a real install**) | ✘ inside VM | OrbStack `data.img` ✔; Colima ✘ |

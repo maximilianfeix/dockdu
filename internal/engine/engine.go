@@ -49,6 +49,8 @@ type Daemon struct {
 	// containerd image store (DriverStatus driver-type
 	// io.containerd.snapshotter.v1) instead of a graph driver.
 	ContainerdSnapshotter bool `json:"containerd_snapshotter,omitempty"`
+	// Rootless is true when Info.SecurityOptions contains name=rootless.
+	Rootless bool `json:"rootless,omitempty"`
 }
 
 // Totals are the per-type aggregates the daemon computes for
