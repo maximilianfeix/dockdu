@@ -45,6 +45,10 @@ type Daemon struct {
 	StorageDriver   string `json:"storage_driver"`
 	LoggingDriver   string `json:"logging_driver"`
 	DataRoot        string `json:"data_root"`
+	// ContainerdSnapshotter is true when the daemon keeps images in the
+	// containerd image store (DriverStatus driver-type
+	// io.containerd.snapshotter.v1) instead of a graph driver.
+	ContainerdSnapshotter bool `json:"containerd_snapshotter,omitempty"`
 }
 
 // Totals are the per-type aggregates the daemon computes for

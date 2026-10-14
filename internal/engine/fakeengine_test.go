@@ -263,3 +263,19 @@ func BenchmarkSnapshotSlowInspect(b *testing.B) {
 		})
 	}
 }
+
+func TestContainerdSnapshotterFromDriverStatus(t *testing.T) {
+	cases := []struct {
+		status [][2]string
+		want   bool
+	}{
+		{[][2]string{{"driver-type", "io.containerd.snapshotter.v1"}}, true},               // Engine 29.9 dind
+		{[][2]string{{"Backing Filesystem", "extfs"}, {"Supports d_type", "true"}}, false}, // Engine 28.5 overlay2
+		{nil, false},
+	}
+	for _, c := range cases {
+		if got := containerdSnapshotter(c.status); got != c.want {
+			t.Errorf("%v: got %v", c.status, got)
+		}
+	}
+}

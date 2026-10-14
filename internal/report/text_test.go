@@ -217,3 +217,17 @@ func TestWriteTextDataRootOnDisk(t *testing.T) {
 		t.Fatalf("incomplete walk must not show an outside figure:\n%s", buf.String())
 	}
 }
+
+func TestWriteTextContainerdStorePruneEffectUnknown(t *testing.T) {
+	r := goldenReport()
+	r.BuildCache.SharedMayBeFreedByPrune, r.BuildCache.NotFreedByPrune = true, -1
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "prune would NOT free") || !strings.Contains(out, "prune frees an unknown part of the 31.0 GiB shared with images") ||
+		!strings.Contains(out, "shared build cache may keep its own copy on the containerd image store") {
+		t.Fatalf("containerd store wording missing:\n%s", out)
+	}
+}

@@ -57,6 +57,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if r.BuildCache.DfRowMismatch {
 		partial = append(partial, "build cache row disagrees with its records")
 	}
+	if r.BuildCache.SharedMayBeFreedByPrune && s.BuildCacheSharedBytes > 0 {
+		partial = append(partial, "shared build cache may keep its own copy on the containerd image store")
+	}
 	if s.VolumeSizesUnknown > 0 {
 		partial = append(partial, fmt.Sprintf("%d volume size(s) unknown", s.VolumeSizesUnknown))
 	}
@@ -108,7 +111,12 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	p("\nBUILD CACHE\n")
 	p("  %d records · total %s · shared %s · private %s · reclaimable (as df counts it) %s\n",
 		bc.Records, Bytes(bc.TotalBytes), Bytes(bc.SharedBytes), Bytes(bc.PrivateBytes), Bytes(bc.ReclaimableBytes))
-	p("  prune would NOT free %s (shared with images or in use)\n", Bytes(bc.NotFreedByPrune))
+	if bc.SharedMayBeFreedByPrune {
+		p("  prune frees an unknown part of the %s shared with images: on the containerd image store a shared record can keep\n", Bytes(bc.SharedBytes))
+		p("  its own copy, and Docker does not report how much (on overlay2 none of it is freed). In use, never freed: %s\n", Bytes(bc.InUseBytes))
+	} else {
+		p("  prune would NOT free %s (shared with images or in use)\n", Bytes(bc.NotFreedByPrune))
+	}
 	sug(bc.Suggestions)
 
 	lg := r.Logs
