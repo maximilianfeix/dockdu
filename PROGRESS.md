@@ -57,23 +57,22 @@ See `docs/SPIKE.md`, section "Spec amendments proposed in this PR" (6.1, 6.4, 6.
 - Image `alpine:3.22` (kept for the integration test).
 Remove containers and volumes by ID/name after checking the label; never prune.
 
-## State on 2026-10-14 (evening)
+## State on 2026-10-14 (night)
 
-- **Merged into `main`:**
-  - #22 v0.2-hardening;
-  - #23 codeql-action v4 for all steps (closes #18–#21);
-  - #24 issue and PR templates;
-  - #25 changelog 0.2.0.
+- **v0.2.0 is released:**
+  - GitHub release;
+  - ghcr.io images `v0.2.0` and `latest` (amd64 and arm64);
+  - Homebrew cask 0.2.0;
+  - `go install @v0.2.0`.
 
-  CI, CodeQL and Scorecard were green on every PR and on `main`.
-- **Tag `v0.2.0`** (annotated, by Maxi) points to `d054f47` and is pushed. Release run 38612540882 stopped at the preflight: `tap token cannot write to maximilianfeix/homebrew-tap (HTTP 403): Resource not accessible by personal access token`. **Nothing was published:** no GitHub release, no images, no cask.
-- **Open:** #26 launch kit (docs) and #27 `--disk` (feature for v0.3.0, not part of the v0.2.0 tag).
+  Verification: `docs/verification/release-v0.2.0.md`.
+- **`main` after v0.2.0:** the launch kit (#26) and `--disk` (#27, unreleased, listed under [Unreleased]).
 
 ## Next executable steps
 
-1. Owner: give the token in `HOMEBREW_TAP_GITHUB_TOKEN` **Contents: Read and write** on `maximilianfeix/homebrew-tap` (fine-grained PAT, only that repository), or replace it with one that has it.
-2. Re-run the release from the tag, `gh run rerun 38612540882 --repo maximilianfeix/dockdu --failed`, then run the post-release checks in `docs/RELEASING.md` (assets, checksums, ghcr manifest, `go install @v0.2.0` prints 0.2.0, brew).
-3. Run `--disk` on a real Linux host with a large data root, then release v0.3.0.
+1. Replace the deprecated cask `postflight` with `postflight_steps` (GoReleaser `custom_block` or a newer GoReleaser), and check it with `brew audit --cask` / `brew style`.
+2. Run `--disk` on a real Linux host with a large data root, then release v0.3.0 via `docs/RELEASING.md`.
+3. Launch steps in `docs/growth/launch-kit/` (written by the maintainer): awesome-docker PR, console.dev email, the article.
 
 ## Test status of the v0.2 branch (release validation 2026-10-14)
 
