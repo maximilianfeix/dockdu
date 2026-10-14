@@ -1,0 +1,50 @@
+name: Numbers look wrong or unexplained
+description: dockdu reported something that does not match your disk, or could not explain it
+labels: ["accounting"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Please never run a prune or rm command just to report this; dockdu itself never changes anything.
+        Before pasting output, replace container, volume and image names, hostnames and paths you consider private (for example with `app-1`, `vol-a`).
+  - type: input
+    id: version
+    attributes:
+      label: dockdu version
+      placeholder: output of `dockdu --version`
+    validations:
+      required: true
+  - type: input
+    id: engine
+    attributes:
+      label: Docker engine, storage driver, platform
+      placeholder: e.g. Engine 28.5.2, overlay2, Ubuntu 24.04 amd64 / Docker Desktop 4.x on macOS
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How did you run it?
+      options:
+        - Binary on a Linux host as root
+        - Binary on a Linux host without root
+        - Container image (docker run ... ghcr.io/maximilianfeix/dockdu)
+        - Binary on macOS (Docker Desktop / OrbStack / Colima)
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected and what you saw
+      description: Which number looks wrong, and how you know (for example `df -h`, `du -sx /var/lib/docker`, `docker system df -v`).
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Redacted output
+      description: |
+        `dockdu --json` (redacted) or the relevant text sections, plus `docker system df`.
+        If the disk is fuller than Docker explains, `dockdu --disk` output helps (it only reads metadata).
+      render: text
