@@ -4,6 +4,10 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.3.0] - 2026-10-14
+
 ### Fixed
 - Containerd image store (default on fresh Engine 29 and on Docker Desktop): build cache shared with images is no longer reported as "prune would NOT free". On that store a shared record can keep its own copy; measured with `docker builder prune -af` on disposable daemons, Engine 29.9 freed 72.7 of 140.7 MiB (and 56.8 of 108.7 MiB) of shared records, while Engine 28.5 on overlay2 freed none. `build_cache.not_freed_by_prune_bytes` is now -1 there, `build_cache.shared_may_be_freed_by_prune` is true, the summary is a lower bound, and `daemon.image_store` says which store is in use.
 
@@ -41,6 +45,7 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/maximilianfeix/dockdu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maximilianfeix/dockdu/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maximilianfeix/dockdu/releases/tag/v0.1.0

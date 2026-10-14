@@ -142,7 +142,7 @@ The log files are inside that VM, so the host binary reports them as unmeasured.
 
 ## When `df -h` and Docker disagree: `--disk`
 
-> Not in a release yet (after v0.2.0). Build from `main` with `go install github.com/maximilianfeix/dockdu/cmd/dockdu@main` to try it.
+> Since v0.3.0.
 
 Docker's numbers are logical sizes from its API. Your disk fills up in allocated blocks, and part of it may not be Docker's at all. Whenever the data root is visible (Linux as root, or the container image), dockdu prints the filesystem that holds it. When that filesystem is at least 80% full, it suggests `dockdu --disk`, which walks the data root the way `du -sx` does:
 - `lstat` only: no symlink is followed and no file is opened;
