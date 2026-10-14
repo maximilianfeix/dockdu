@@ -57,34 +57,23 @@ See `docs/SPIKE.md`, section "Spec amendments proposed in this PR" (6.1, 6.4, 6.
 - Image `alpine:3.22` (kept for the integration test).
 Remove containers and volumes by ID/name after checking the label; never prune.
 
-## Local branches waiting to be pushed (2026-10-14, second session)
+## State on 2026-10-14 (evening)
 
-The auto-mode permission classifier refused `git push` and `gh pr create` in this session ("external system writes"), so nothing below is on GitHub yet. All commits are authored by Maxi (repo-local git identity is set).
+- **Merged into `main`:**
+  - #22 v0.2-hardening;
+  - #23 codeql-action v4 for all steps (closes #18–#21);
+  - #24 issue and PR templates;
+  - #25 changelog 0.2.0.
 
-| Branch | Base | Content | Checks |
-|---|---|---|---|
-| `v0.2-hardening` | `origin/main` | the v0.2 release candidate, 19 commits (head 302cdd5) | full gate PASS; validated on Engine 28.5.2 and 29.9.0 |
-| `ci-codeql-v4` | `origin/main` | all four codeql-action steps on v4.38.3 (24c54180) plus a Dependabot group; supersedes #18–#21 | actionlint, YAML PASS; CI NOT RUN |
-| `community-templates` | `origin/main` | issue form for unexplained numbers (asks for redaction), PR checklist | YAML PASS |
-| `launch-kit` | `v0.2-hardening` | `docs/growth/launch-kit/`: fact sheet, outlines, directories, release text, FAQ | docs only |
-| `diagnose-disk` | `v0.2-hardening` | filesystem line plus `--disk` (data root measured on disk), docs, this handoff | full gate PASS; `--disk` within 0.1% of `du -sxk` on Engine 28/29 dind; 301k files in 1.3–1.5 s, 16–18 MB RSS |
+  CI, CodeQL and Scorecard were green on every PR and on `main`.
+- **Tag `v0.2.0`** (annotated, by Maxi) points to `d054f47` and is pushed. Release run 38612540882 stopped at the preflight: `tap token cannot write to maximilianfeix/homebrew-tap (HTTP 403): Resource not accessible by personal access token`. **Nothing was published:** no GitHub release, no images, no cask.
+- **Open:** #26 launch kit (docs) and #27 `--disk` (feature for v0.3.0, not part of the v0.2.0 tag).
 
-Push and PR commands (run them yourself, or allow `git push` / `gh pr create` for this repo):
+## Next executable steps
 
-```
-cd ~/code/dockdu
-for b in v0.2-hardening ci-codeql-v4 community-templates launch-kit diagnose-disk; do git push -u origin "$b"; done
-gh pr create --base main --head v0.2-hardening --title "v0.2: correct Engine 28 accounting, enforce read-only, docker contexts" --body-file ~/code/dockdu-release/pr-v0.2-body.md
-gh pr create --base main --head ci-codeql-v4 --title "ci: codeql-action v4 for every step, grouped Dependabot updates" --body "All four codeql-action steps must use the same version; #18-#21 each bump one and fail. Supersedes #18-#21."
-gh pr create --base main --head community-templates --title "chore: issue form for unexplained numbers, PR checklist" --body "Asks for redacted output, never asks to prune; PR checklist carries the read-only and unknown-is-not-zero invariants."
-gh pr create --base v0.2-hardening --head launch-kit --title "docs: launch kit for v0.2.0" --body "Fact sheet, outlines for human-written posts, directory criteria, release text, FAQ."
-gh pr create --base v0.2-hardening --head diagnose-disk --title "feat: data root filesystem and --disk" --body "Shows the filesystem holding the data root; --disk measures the data root like du -sx and reports what lies outside it. Verified against du on Engine 28/29."
-```
-
-Next three actions:
-1. Push the branches and open the PRs above, watch CI (`gh pr checks <n> --watch`), fix failures. After #ci-codeql-v4 merges, close #18–#21.
-2. Fix the tap token (fine-grained PAT: only `maximilianfeix/homebrew-tap`, Contents read and write), merge v0.2, run `docs/RELEASING.md` for v0.2.0.
-3. Retarget `launch-kit` and `diagnose-disk` to `main` after v0.2 merges. Release `--disk` as v0.3.0 once it has been run on a real Linux host with a large data root.
+1. Owner: give the token in `HOMEBREW_TAP_GITHUB_TOKEN` **Contents: Read and write** on `maximilianfeix/homebrew-tap` (fine-grained PAT, only that repository), or replace it with one that has it.
+2. Re-run the release from the tag, `gh run rerun 38612540882 --repo maximilianfeix/dockdu --failed`, then run the post-release checks in `docs/RELEASING.md` (assets, checksums, ghcr manifest, `go install @v0.2.0` prints 0.2.0, brew).
+3. Run `--disk` on a real Linux host with a large data root, then release v0.3.0.
 
 ## Test status of the v0.2 branch (release validation 2026-10-14)
 
