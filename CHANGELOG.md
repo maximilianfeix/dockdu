@@ -4,7 +4,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+- Text output fits an 80-column terminal: summary notes, build cache text, section details, Docker Desktop text and warnings wrap onto indented lines instead of running to about 190 columns on containerd hosts. Table rows and suggested commands are not wrapped, so commands stay copyable. `--json` is unchanged.
 
 ## [0.3.0] - 2026-10-14
 

@@ -77,7 +77,7 @@ func TestWriteTextTopLimitsRowsAndSaysSo(t *testing.T) {
 	if !strings.Contains(out, "CONTAINER LOGS  (top 1 of 3") || strings.Contains(out, "blog-worker-3") {
 		t.Fatalf("--top 1 must show one log row and say 'top 1 of 3':\n%s", out)
 	}
-	if !strings.Contains(out, "IMAGES  (top 1 of 3") {
+	if !strings.Contains(flat(out), "IMAGES top 1 of 3 · total") {
 		t.Fatalf("images header must report the limit:\n%s", out)
 	}
 }
@@ -130,7 +130,7 @@ func TestWriteTextLegacyDaemonSaysNothingWasSubtracted(t *testing.T) {
 	if err := WriteText(&buf, r, 10); err != nil {
 		t.Fatal(err)
 	}
-	if out := buf.String(); !strings.Contains(out, "= df + logs (df's build cache row already leaves out 31.0 GiB shared with images)") || strings.Contains(out, "= df − 0 B") {
+	if out := flat(buf.String()); !strings.Contains(out, "= df + logs (df's build cache row already leaves out 31.0 GiB shared with images)") || strings.Contains(out, "= df − 0 B") {
 		t.Fatalf("legacy summary line wrong:\n%s", out)
 	}
 }
@@ -198,7 +198,8 @@ func TestWriteTextDataRootOnDisk(t *testing.T) {
 	out := buf.String()
 	for _, want := range []string{
 		"data root filesystem        92.0 GiB    used of 100.0 GiB · 8.0 GiB free",
-		"DATA ROOT ON DISK  (/var/lib/docker · allocated blocks · 1234 entries · complete)",
+		"DATA ROOT ON DISK",
+		"/var/lib/docker · allocated blocks · 1234 entries · complete",
 		"overlay2",
 		"data root on disk           70.0 GiB",
 		"outside the data root       22.0 GiB",
@@ -225,9 +226,78 @@ func TestWriteTextContainerdStorePruneEffectUnknown(t *testing.T) {
 	if err := WriteText(&buf, r, 10); err != nil {
 		t.Fatal(err)
 	}
-	out := buf.String()
+	out := flat(buf.String())
 	if strings.Contains(out, "prune would NOT free") || !strings.Contains(out, "prune frees an unknown part of the 31.0 GiB shared with images") ||
-		!strings.Contains(out, "shared build cache may keep its own copy on the containerd image store") {
+		!strings.Contains(out, "shared build cache may keep its own copy (containerd image store)") {
 		t.Fatalf("containerd store wording missing:\n%s", out)
+	}
+}
+
+// flat collapses all whitespace, so assertions about content do not depend
+// on where the renderer wraps lines.
+func flat(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// worstCase is a report with the widest values the renderer prints (10-rune
+// sizes such as "1023.9 TiB") and every optional note switched on, but no
+// list items: tables and → commands are exempt from the width limit.
+func worstCase() *Report {
+	const huge = 1023<<40 + 900<<30 // renders as "1023.9 TiB"
+	r := goldenReport()
+	r.Daemon.OperatingSystem = "Alpine Linux v3.24 (containerized)"
+	r.Summary = Summary{DfReportedBytes: huge, DfImages: huge, DfContainers: huge, DfVolumes: huge, DfBuildCache: huge,
+		LogBytes: huge, BuildCacheSharedBytes: huge, DockerBytesTotal: huge, NotShownByDf: huge, VolumeSizesUnknown: 999}
+	r.BuildCache = BuildCache{Records: 99999, TotalBytes: huge, SharedBytes: huge, PrivateBytes: huge, ReclaimableBytes: huge,
+		InUseBytes: huge, NotFreedByPrune: -1, SharedCountedInDfBytes: huge, DfRowMismatch: true, SharedMayBeFreedByPrune: true}
+	r.Logs = Logs{TotalBytes: huge, Items: []LogItem{}}
+	r.Projects = Projects{TotalBytes: huge, SharedImageBytes: huge, ImageOverlapBytes: huge, Items: []Project{}}
+	r.Images = Images{Count: 99999, TotalBytes: huge, Dangling: 99999, ReclaimableBytes: huge, Items: []ImageItem{}}
+	r.Volumes = Volumes{Count: 99999, TotalBytes: huge, UnknownSizes: 99999, Items: []VolumeItem{}}
+	r.Filesystem = &Filesystem{Path: "/var/lib/docker", SizeBytes: huge, UsedBytes: huge, AvailableBytes: huge,
+		DataRoot: &DiskUsage{AllocatedBytes: huge, Entries: 99999999, Complete: false, SkippedMounts: 999, OutsideDataRootBytes: huge, Items: []DiskItem{}}}
+	r.Desktop.ApparentBytes, r.Desktop.AllocatedBytes, r.Desktop.DockerReportedBytes = huge, huge, huge
+	r.Desktop.Explanation = "Space inside the VM disk file is freed when images, containers, volumes or build cache are removed. The file itself only shrinks when Docker Desktop compacts it; lowering the disk usage limit under Settings → Resources → Advanced deletes the file and everything in it."
+	r.Warnings = []string{"logs: 3 container(s) not measured: /var/lib/docker/containers is not visible from here: log directory not found under the data root. On Docker Desktop the data root is inside the VM; run the container image (see README)"}
+	return r
+}
+
+func TestWriteTextProseFitsEightyColumns(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		r := worstCase()
+		r.BuildCache.DfRowExcludesShared = legacy
+		var buf bytes.Buffer
+		if err := WriteText(&buf, r, 10); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(buf.String(), "1023.9 TiB") {
+			t.Fatalf("worst case does not render 10-rune sizes:\n%s", buf.String())
+		}
+		for i, line := range strings.Split(buf.String(), "\n") {
+			if strings.HasPrefix(line, "  → ") || strings.Contains(line, "com.docker.docker/Data/vms") {
+				continue // copyable commands and a single path token are exempt
+			}
+			if n := runeLen(line); n > textWidth {
+				t.Errorf("legacy=%v line %d has %d columns (max %d):\n%s", legacy, i+1, n, textWidth, line)
+			}
+		}
+	}
+}
+
+func TestWrapTokensNeverSplitsATokenAndRespectsWidths(t *testing.T) {
+	tokens := []string{"images 1023.9 TiB", "containers 1023.9 TiB", "volumes 1023.9 TiB", "build cache 1023.9 TiB"}
+	got := wrapTokens(tokens, " · ", 40, 76)
+	if strings.Join(got, " · ") != strings.Join(tokens, " · ") {
+		t.Fatalf("wrapping lost or split a token: %q", got)
+	}
+	for i, l := range got {
+		limit := 76
+		if i == 0 {
+			limit = 40
+		}
+		if runeLen(l) > limit {
+			t.Errorf("line %d too long (%d > %d): %q", i, runeLen(l), limit, l)
+		}
+	}
+	if long := wrapTokens([]string{strings.Repeat("x", 100)}, " ", 10, 10); len(long) != 1 || runeLen(long[0]) != 100 {
+		t.Errorf("a token longer than the width must stay whole: %q", long)
 	}
 }
