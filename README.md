@@ -24,10 +24,10 @@
 
 **dockdu shows what `docker system df` misses (container log files, build cache shared with images, storage per compose project) without deleting anything.**
 
-In the demo below, `docker system df` on a disposable Docker Engine 29.9 host reports 313.6 MiB. dockdu finds **537.0 MiB of container log files that no df row contains**, and that all 140.7 MiB of build cache is shared with an image. `du` on the log files confirms the number. Every command and number is real; how it was recorded: [docs/verification/demo-2026-10-14.md](docs/verification/demo-2026-10-14.md).
+In the demo below, `docker system df` on a disposable Docker Engine 29.9 host reports 313.6 MiB. dockdu finds **536.9 MiB of container log files that no df row contains**, and that all 140.7 MiB of build cache is shared with an image. `du` on the log files confirms the number. Every command and number is real; how it was recorded: [docs/verification/demo-2026-10-14.md](docs/verification/demo-2026-10-14.md).
 
 <div align="center">
-<img src="docs/demo.gif" alt="On a disposable Docker Engine 29.9 host: docker system df reports 313.6 MiB; dockdu v0.3.0 finds 537.0 MiB of container logs that df does not show, build cache shared with images, storage per compose project and an orphan volume; du -ch on the log files confirms 535.1M" width="900">
+<img src="docs/demo.gif" alt="On a disposable Docker Engine 29.9 host: docker system df reports 313.6 MiB; dockdu v0.3.2 finds 536.9 MiB of container logs that df does not show, build cache shared with images, storage per compose project and an orphan volume; du -ch on the log files confirms 535.0M" width="900">
 </div>
 
 ```bash
@@ -75,25 +75,33 @@ The binary is static, has no configuration file, and connects to nothing but the
 
 ## What it shows
 
-One run, each section with its own suggestions. Real `dockdu --top 3` output (v0.3.0) from the demo host above; COMPOSE PROJECTS and IMAGES are left out here, the full run is in [docs/verification/demo-2026-10-14.md](docs/verification/demo-2026-10-14.md):
+One run, each section with its own suggestions. Real `dockdu --top 3` output (v0.3.2) from the demo host above; COMPOSE PROJECTS and IMAGES are left out here, the full run is in [docs/verification/demo-2026-10-14.md](docs/verification/demo-2026-10-14.md):
 
 ```text
 SUMMARY
-  docker system df reports    313.6 MiB   images 140.8 MiB · containers 24.0 KiB · volumes 32.0 MiB · build cache 140.7 MiB
-  container logs on disk      537.0 MiB   not shown by df
-  Docker resources in total   709.8 MiB   = df − 140.7 MiB build cache shared with images + logs (lower bound: shared build cache may keep its own copy on the containerd image store)
-  data root filesystem        2.7 GiB     used of 223.6 GiB · 209.5 GiB free (allocated blocks, a different measure)
+  docker system df reports    313.6 MiB
+    images 140.8 MiB · containers 24.0 KiB · volumes 32.0 MiB
+    build cache 140.7 MiB
+  container logs on disk      536.9 MiB   not shown by df
+  Docker resources in total   709.8 MiB
+    = df − 140.7 MiB shared build cache + logs
+    lower bound: shared build cache may keep its own copy (containerd store)
+  data root filesystem        2.2 GiB     used of 223.6 GiB · 210.0 GiB free
+    allocated blocks, a different measure from Docker's sizes
 
 BUILD CACHE
-  4 records · total 140.7 MiB · shared 140.7 MiB · private 12.0 KiB · reclaimable (as df counts it) 12.0 KiB
-  prune frees an unknown part of the 140.7 MiB shared with images: on the containerd image store a shared record can keep
-  its own copy, and Docker does not report how much (on overlay2 none of it is freed). In use, never freed: 0 B
+  4 records · total 140.7 MiB · shared 140.7 MiB · private 12.0 KiB
+  reclaimable (as df counts it) 12.0 KiB
+  prune frees an unknown part of the 140.7 MiB shared with images: on the
+  containerd image store a shared record can keep its own copy, and Docker does
+  not report how much (on overlay2 none of it is freed). In use, never freed:
+  0 B
   → docker builder prune --filter until=168h   # unused build cache older than 7 days
   → docker builder prune -a                    # all build cache not in use (next build is slower)
 
-CONTAINER LOGS  (top 3 of 4 · total 537.0 MiB · complete)
+CONTAINER LOGS  (top 3 of 4 · total 536.9 MiB · complete)
   CONTAINER            PROJECT      DRIVER     SIZE       FILES  ROTATION        NOTE
-  dockdu-demo-chatty   -            json-file  534.7 MiB  1      unbounded
+  dockdu-demo-chatty   -            json-file  534.6 MiB  1      unbounded
   dockdu-demo-bounded  -            json-file  2.3 MiB    3      bounded 1m × 3
   dockdu-demo-web-1    dockdu-demo  json-file  0 B        1      unbounded
   → set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only
