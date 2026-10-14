@@ -72,4 +72,4 @@ Recorded 2026-10-14, `LOG_MB=100`.
 
 On Engine 29 with the containerd store the demo image is 140.7 MiB for a 64 MiB layer of random data plus alpine: the store keeps the compressed content next to the unpacked snapshot. The Engine 28 figure for the same image is 72.1 MiB.
 
-The README GIF (`docs/demo.gif`) was recorded from the Engine 29 run with `vhs docs/demo/dind.tape`.
+The README GIF (`docs/demo.gif`) was recorded from the Engine 29 run with `vhs demo.tape` (it now records the Engine 29 demo; see [../verification/demo-2026-10-14.md](../verification/demo-2026-10-14.md)).
