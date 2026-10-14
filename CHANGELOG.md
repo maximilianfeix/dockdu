@@ -4,6 +4,13 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.3.1] - 2026-10-14
+
+### Security
+- Release and CodeQL workflows grant write permissions per job instead of workflow-wide; `golang.org/x/sys` v0.44.0 (GO-2026-5024, not reachable from dockdu).
+
 ### Changed
 - Text output fits an 80-column terminal: summary notes, build cache text, section details, Docker Desktop text and warnings wrap onto indented lines instead of running to about 190 columns on containerd hosts. Table rows and suggested commands are not wrapped, so commands stay copyable. `--json` is unchanged.
 
@@ -46,7 +53,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/maximilianfeix/dockdu/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maximilianfeix/dockdu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maximilianfeix/dockdu/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maximilianfeix/dockdu/releases/tag/v0.1.0
