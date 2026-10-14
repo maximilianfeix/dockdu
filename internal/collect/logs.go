@@ -42,6 +42,19 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 	out := report.Logs{Complete: true, Items: make([]report.LogItem, 0, len(s.Containers)), Suggestions: []string{}}
 	var warns []string
 	unbounded := false
+	// When <root>/containers itself is not visible (Docker Desktop host run,
+	// no root access) every container would fail the same way; say it once.
+	_, rootErr := os.Stat(filepath.Join(dataRoot, "containers"))
+	hidden := 0
+	unreachable := func(it *report.LogItem) bool {
+		if rootErr == nil {
+			return false
+		}
+		it.Note = describeFSError(rootErr)
+		out.Complete = false
+		hidden++
+		return true
+	}
 
 	for _, c := range s.Containers {
 		it := report.LogItem{ContainerID: c.ID, Name: c.Name, Project: c.Labels[composeProjectLabel], Driver: c.LogDriver, Bytes: -1}
@@ -71,6 +84,9 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 				warns = append(warns, fmt.Sprintf("logs: %s not measured: path outside data root", c.Name))
 				break
 			}
+			if unreachable(&it) {
+				break
+			}
 			measure(&it, filepath.Dir(path), filepath.Base(path), &out, &warns)
 			if it.Measured && it.Rotation == "unbounded" && it.Bytes > 0 {
 				unbounded = true
@@ -79,7 +95,9 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 			it.Rotation = "bounded"
 			it.MaxSize = optOrDefault(c.LogOpts, "max-size", "20m (driver default)")
 			it.MaxFile = optOrDefault(c.LogOpts, "max-file", "5 (driver default)")
-			measure(&it, filepath.Join(dataRoot, "containers", c.ID, "local-logs"), "container.log", &out, &warns)
+			if !unreachable(&it) {
+				measure(&it, filepath.Join(dataRoot, "containers", c.ID, "local-logs"), "container.log", &out, &warns)
+			}
 		default:
 			it.Rotation = "not on disk"
 			it.Note = fmt.Sprintf("driver %q does not write under the data root", c.LogDriver)
@@ -87,6 +105,10 @@ func Logs(s *engine.Snapshot, dataRoot string) (report.Logs, []string) {
 		out.Items = append(out.Items, it)
 	}
 
+	if hidden > 0 {
+		warns = append(warns, fmt.Sprintf("logs: %d container(s) not measured: %s is not visible from here: %s. On Docker Desktop the data root is inside the VM; run the container image (see README)",
+			hidden, filepath.Join(dataRoot, "containers"), describeFSError(rootErr)))
+	}
 	sort.SliceStable(out.Items, func(i, j int) bool {
 		a, b := out.Items[i], out.Items[j]
 		if a.Measured != b.Measured {

@@ -240,3 +240,18 @@ Record the answers in `docs/SPIKE.md` and adjust this spec where they contradict
 ## 12. Follow-ups explicitly deferred
 
 Windows and WSL; `--fix` with confirmation; Podman socket; non-default builders via the BuildKit gRPC hijack; CI mode with thresholds and non-zero exit on budget; colour output; TUI.
+
+## 13. Changes after v0.1.0 (proposed for v0.2, branch `v0.2-hardening`)
+
+These extend the v0.1 contract without changing any existing field's meaning. Sections 1–12 stay as released.
+
+1. **Build cache with older daemons** (correction to §3.2.1 and §6.4): for API < 1.52, moby/client and docker CLI 28 compute the build cache total without shared records. The summary subtracts only `build_cache.shared_counted_in_df_bytes`, the part of the shared bytes that df's row contains. `build_cache.total_bytes` is the records total in both cases.
+2. **Read-only enforcement** (extends §3.3): every client carries a request hook. It allows GET/HEAD only, on `/_ping`, `/v1.xx/info`, `/v1.xx/system/df` and `/v1.xx/containers/<12–64 hex>/json`.
+3. **Docker contexts** (extends §5 and §4 "no remote hosts beyond DOCKER_HOST"): DOCKER_HOST, then DOCKER_CONTEXT, then `currentContext` from `$DOCKER_CONFIG/config.json` (default `~/.docker`). Only unix://, npipe:// and tcp:// endpoints, with optional context TLS files. ssh:// and SkipTLSVerify are refused.
+4. **JSON** (extends §7):
+   - new top-level `schema_version` (1);
+   - `summary.volume_sizes_unknown` and `summary.complete`;
+   - `build_cache.shared_counted_in_df_bytes`, `build_cache.df_row_excludes_shared` and `build_cache.df_row_mismatch` (a mismatch makes `summary.complete` false);
+   - `projects.image_overlap_bytes`.
+5. **Suggestions** (extends §6.8): volume names are shell-quoted, with `--` before a leading dash; no command for names with control characters.
+6. **Inspect concurrency:** at most 4 concurrent `ContainerInspect` calls; output order unchanged.

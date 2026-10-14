@@ -3,7 +3,7 @@ dockdu v0.1.0-test · docker 29.2.0 (API 1.53) · Docker Desktop · data root /v
 SUMMARY
   docker system df reports    84.2 GiB    images 5.0 GiB · containers 100.0 MiB · volumes 15.0 GiB · build cache 64.1 GiB
   container logs on disk      48.3 GiB    not shown by df · incomplete, lower bound (see CONTAINER LOGS)
-  Docker resources in total   101.5 GiB   = df − 31.0 GiB build cache shared with images + logs (lower bound: logs incomplete)
+  Docker resources in total   101.5 GiB   = df − 31.0 GiB build cache shared with images + logs (lower bound: logs incomplete, 1 volume size(s) unknown)
 
 BUILD CACHE
   26 records · total 64.1 GiB · shared 31.0 GiB · private 33.1 GiB · reclaimable (as df counts it) 33.1 GiB
@@ -17,12 +17,13 @@ CONTAINER LOGS  (3 · total 48.3 GiB · incomplete)
   loose          -        json-file  unmeasured  -      unbounded                          not measured, see WARNINGS
   → set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only
 
-COMPOSE PROJECTS  (total 36.7 GiB · shared images counted once: 476.8 MiB)
+COMPOSE PROJECTS  (total 36.7 GiB · images used by several projects counted once: 476.8 MiB)
+  image sizes include base layers shared between images: they overlap by at least 286.1 MiB, so IMAGES and TOTAL are not additive
   PROJECT  CONTAINERS  IMAGES   SHARED IMAGES   VOLUMES   LOGS                TOTAL     NOTES
   shop     4           3.9 GiB  +476.8 MiB (1)  12.1 GiB  6.2 GiB             22.2 GiB
   (none)   2           1.0 GiB  -               13.0 GiB  0 B (1 unmeasured)  14.0 GiB  3 orphan volume(s), 7 dangling image(s), 1 stopped > 7 d, 1 volume size(s) unknown
 
-IMAGES  (3 · total 5.0 GiB · dangling 1 · reclaimable (as df counts it) 1.1 GiB)
+IMAGES  (3 · total 5.0 GiB · dangling 1 · reclaimable per the Docker API 1.1 GiB)
   IMAGE                SIZE       SHARED    UNIQUE IF REMOVED  CONTAINERS  PROJECTS
   shop:1 (+1)          3.9 GiB    0 B       unknown            2           shop
   postgres:16          476.8 MiB  95.4 MiB  unknown            2           blog,shop

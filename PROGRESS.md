@@ -4,7 +4,16 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-v0.1.0 released on 2026-10-13 from `ebf8794`: GitHub release, ghcr.io images (public) and the Homebrew cask are live; verification in `docs/verification/release-2026-10-13.md`. No next phase planned; follow-ups are in SPEC.md §12.
+v0.1.0 released on 2026-10-13 from `ebf8794`. **v0.2 hardening validated** on the local branch `v0.2-hardening` (2026-10-14, **not pushed**, no PR yet). Release verdict: NOT READY to tag until it is pushed, CI is green and the tap token is fixed; the code passed every check that was run. Audit and plan: `docs/audits/product-and-engineering-audit.md`. SPEC.md §13 lists the contract additions.
+
+### v0.2-hardening: done and verified (2026-10-14)
+
+- P0-1: shared build cache no longer subtracted twice on Engine ≤ 28. Source-verified (moby/client v0.6.2 legacy path, docker/cli v28.5.1 `system/df.go`), unit and fuzz tested. **Not run against a real Engine 28 daemon.**
+- P1-1: request guard (GET/HEAD on `/_ping`, `/info`, `/system/df`, `/containers/<hex>/json`) plus fake-Engine regression tests for 13 mutating or content-reading calls.
+- P1-2: docker context resolution (DOCKER_HOST → DOCKER_CONTEXT → currentContext). Manually verified against this Mac's `desktop-linux` context; Colima, OrbStack and rootless tested only with synthetic context files.
+- P1-3: volume names shell-quoted in suggestions. P1-4: compose image overlap reported. P2: unknown volume sizes mark the summary as a lower bound; 4 inspect workers (570 → 147 ms on the fake engine); one warning for an invisible data root; JSON `schema_version` plus contract test; fixture `O_EXCL`.
+- Docs: README (headline, Trust, corrected comparison, jq examples, limits), SECURITY, CONTRIBUTING, RELEASING, CHANGELOG [Unreleased], audits (product, accounting, security, competitive), performance, growth plan, content calendar, community research, demo scripts and walkthrough.
+- Checks on the branch head: gofmt clean, `go vet` clean, `go test -race ./...` pass, `FuzzBuildCache` 30 s (1.4 M executions) pass, `goreleaser release --snapshot --clean --skip=docker` pass, snapshot binary smoke-run against Docker Desktop 29.2 exit 0.
 
 ## Done
 
@@ -48,6 +57,42 @@ See `docs/SPIKE.md`, section "Spec amendments proposed in this PR" (6.1, 6.4, 6.
 - Image `alpine:3.22` (kept for the integration test).
 Remove containers and volumes by ID/name after checking the label; never prune.
 
-## Next executable step
+## Test status of the v0.2 branch (release validation 2026-10-14)
+
+Full table and raw outputs: `docs/verification/v0.2-validation-2026-10-14.md`. Environment: two disposable daemons, `docker:28-dind` (Engine 28.5.2, API 1.51) and `docker:29-dind` (Engine 29.9.0, API 1.56, containerd store), removed afterwards.
+
+| Check | Status |
+|---|---|
+| build, vet, gofmt, `go test -race` (host) | PASS |
+| unit tests as Linux binaries in dind | PASS |
+| staticcheck 0.8.2 | PASS (after 332330d) |
+| govulncheck 1.9.0 | PASS (no vulnerabilities) |
+| FuzzBuildCache | PASS |
+| cross-compile linux/darwin/windows/freebsd | PASS (compile only) |
+| integration test on Engine 28.5.2 and 29.9.0 | PASS |
+| P0-1 on a real Engine 28 (v0.1 wrong, branch right) | PASS |
+| read-only: real-daemon request log | PASS (only `/_ping`, `/info`, `/system/df`, `/containers/<id>/json`) |
+| demo up/down on both engines, decoys survive teardown | PASS |
+| container image from the Dockerfile, README one-liner | PASS (Engine 28 dind) |
+| real CLI-created contexts (tcp, ssh, missing) | PASS |
+| published v0.1.0 archives, checksums, cask sha256, ghcr platforms | PASS |
+| `go install @latest` | PASS; known: v0.1.0 prints `dev`, fixed for the next tag |
+| GoReleaser snapshot without images | PASS |
+| GoReleaser image build, brew install from the tap | NOT RUN |
+| tap token preflight | BLOCKED (owner) |
+| Colima / OrbStack / rootless real installs, Windows/WSL2, large hosts | NOT RUN |
+| CI on the branch | NOT RUN (not pushed) |
+
+Found and fixed during validation: the IMAGES "reclaimable (as df counts it)" label was false on Engine 28 (edd226c).
+
+## Next executable steps (in order)
+
+1. Owner: review the branch and approve a push plus PR. CI must pass on the PR: lint, build, test, integration and CodeQL.
+2. Owner: give `HOMEBREW_TAP_GITHUB_TOKEN` Contents: read and write on `maximilianfeix/homebrew-tap`.
+3. Merge, then follow `docs/RELEASING.md` for v0.2.0. Move the CHANGELOG [Unreleased] section to 0.2.0; it is the release-notes text.
+4. Delete the leftover local branch `hardening-v0.2` after the merge (ask first).
+5. After the release: `docs/growth/launch-plan.md`, written by the maintainer.
+
+## Previous next step (still open)
 
 Before the next tagged release: give the fine-grained token behind `HOMEBREW_TAP_GITHUB_TOKEN` Contents: Read and write on `maximilianfeix/homebrew-tap` (the v0.1.0 run failed at the cask step with 403 and the cask was pushed by hand). Optional: upload `docs/social-preview.svg` as PNG under Settings → Social preview.

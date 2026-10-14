@@ -98,7 +98,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return recordFixture(path, stderr)
 	}
 
-	eng, err := engine.NewMoby()
+	eng, source, err := connect()
 	if err != nil {
 		fmt.Fprintf(stderr, "dockdu: %v\n", err)
 		return 1
@@ -109,7 +109,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	snap, err := eng.Snapshot(ctx)
 	if err != nil {
 		if errors.Is(err, engine.ErrDaemonUnreachable) {
-			fmt.Fprintf(stderr, "dockdu: cannot reach the Docker daemon at %s\n  set DOCKER_HOST or start Docker; detail: %v\n", eng.Host(), err)
+			fmt.Fprintf(stderr, "dockdu: cannot reach the Docker daemon at %s (from %s)\n  start Docker, or point DOCKER_HOST or DOCKER_CONTEXT at it; detail: %v\n", eng.Host(), source, err)
 			return 1
 		}
 		fmt.Fprintf(stderr, "dockdu: %v\n", err)
@@ -148,8 +148,24 @@ func render(snap *engine.Snapshot, dataRoot string, desktop, asJSON bool, top in
 	return 0
 }
 
+// connect resolves the daemon the docker CLI would use (DOCKER_HOST, then
+// DOCKER_CONTEXT, then the CLI's current context) and returns a client
+// for it plus a description of where the address came from.
+func connect() (*engine.Moby, string, error) {
+	home, _ := os.UserHomeDir() // empty home only disables context lookup
+	target, err := engine.ResolveTarget(os.Getenv, home)
+	if err != nil {
+		return nil, "", err
+	}
+	eng, err := engine.NewMoby(target.Opts...)
+	if err != nil {
+		return nil, "", err
+	}
+	return eng, target.Source, nil
+}
+
 func recordFixture(path string, stderr io.Writer) int {
-	eng, err := engine.NewMoby()
+	eng, _, err := connect()
 	if err != nil {
 		fmt.Fprintf(stderr, "dockdu: %v\n", err)
 		return 1

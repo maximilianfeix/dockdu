@@ -22,7 +22,8 @@ Read-only Go CLI that explains where Docker's disk space went. @SPEC.md is the a
 - Standard library first. A new third-party module needs a sentence in the commit message explaining why.
 - Errors wrapped with `%w`; no panics outside `cmd/dockdu/main.go`.
 - Every collector returns a partial result plus warnings instead of failing the whole report.
-- dockdu never executes a state-changing command. Suggested commands are strings in `internal/report/suggest.go`.
+- dockdu never executes a state-changing command. Suggested commands are strings in `internal/report/suggest.go`; daemon-supplied names inside them go through `ShellQuote`.
+- All daemon access goes through `internal/engine`. The request guard in `internal/engine/guard.go` allows GET/HEAD on four paths; a new endpoint must be read-only, added to the allowlist and to `allowedRequest` in `fakeengine_test.go`, and justified in the commit message.
 - Never suggest `docker volume prune` or any `--volumes` flag.
 - Output goes through `internal/report`; collectors do not print.
 
@@ -31,6 +32,7 @@ Read-only Go CLI that explains where Docker's disk space went. @SPEC.md is the a
 - Unit tests use JSON fixtures under `internal/collect/testdata/`, recorded from a real daemon with the recording helper in `internal/engine`.
 - Integration tests are gated by `DOCKDU_INTEGRATION=1` and `t.Skip` when the daemon is unreachable.
 - Tests must not be weakened or deleted to make a build green. Fix the code.
+- `--json` is a contract: `TestJSONContract` fails when a key disappears. Adding keys: `DOCKDU_UPDATE_KEYS=1 go test ./cmd/dockdu -run JSONContract`. Removing or redefining one needs a `report.SchemaVersion` bump.
 
 ## Git
 

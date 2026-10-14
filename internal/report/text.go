@@ -5,14 +5,13 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
-	"unicode"
 )
 
 // safe replaces control characters in daemon-sourced strings so a crafted
 // label or name cannot inject terminal escape sequences into the report.
 func safe(s string) string {
 	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if unsafeRune(r) {
 			return '?'
 		}
 		return r
@@ -26,7 +25,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	p := func(format string, a ...any) { fmt.Fprintf(&b, format, a...) }
 	sug := func(ss []string) {
 		for _, s := range ss {
-			p("  → %s\n", s)
+			p("  → %s\n", safe(s)) // defence in depth: names inside are daemon data
 		}
 	}
 	limit := func(n int) (int, string) {
@@ -51,11 +50,26 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		logNote += " · incomplete, lower bound (see CONTAINER LOGS)"
 	}
 	p("  container logs on disk      %-11s %s\n", Bytes(s.LogBytes), logNote)
-	totalNote := ""
+	var partial []string
 	if !s.LogBytesComplete {
-		totalNote = " (lower bound: logs incomplete)"
+		partial = append(partial, "logs incomplete")
 	}
-	p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
+	if r.BuildCache.DfRowMismatch {
+		partial = append(partial, "build cache row disagrees with its records")
+	}
+	if s.VolumeSizesUnknown > 0 {
+		partial = append(partial, fmt.Sprintf("%d volume size(s) unknown", s.VolumeSizesUnknown))
+	}
+	totalNote := ""
+	if len(partial) > 0 {
+		totalNote = " (lower bound: " + strings.Join(partial, ", ") + ")"
+	}
+	if r.BuildCache.DfRowExcludesShared {
+		// Older daemons: df's build cache row already leaves shared records out.
+		p("  Docker resources in total   %-11s = df + logs (df's build cache row already leaves out %s shared with images)%s\n", Bytes(s.DockerBytesTotal), Bytes(r.BuildCache.SharedBytes), totalNote)
+	} else {
+		p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
+	}
 	sug(s.Suggestions)
 
 	bc := r.BuildCache
@@ -101,7 +115,10 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	sug(lg.Suggestions)
 
 	pr := r.Projects
-	p("\nCOMPOSE PROJECTS  (total %s · shared images counted once: %s)\n", Bytes(pr.TotalBytes), Bytes(pr.SharedImageBytes))
+	p("\nCOMPOSE PROJECTS  (total %s · images used by several projects counted once: %s)\n", Bytes(pr.TotalBytes), Bytes(pr.SharedImageBytes))
+	if pr.ImageOverlapBytes > 0 {
+		p("  image sizes include base layers shared between images: they overlap by at least %s, so IMAGES and TOTAL are not additive\n", Bytes(pr.ImageOverlapBytes))
+	}
 	if len(pr.Items) > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  PROJECT\tCONTAINERS\tIMAGES\tSHARED IMAGES\tVOLUMES\tLOGS\tTOTAL\tNOTES")
@@ -136,7 +153,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 
 	im := r.Images
 	n, label = limit(len(im.Items))
-	p("\nIMAGES  (%s · total %s · dangling %d · reclaimable (as df counts it) %s)\n", label, Bytes(im.TotalBytes), im.Dangling, Bytes(im.ReclaimableBytes))
+	p("\nIMAGES  (%s · total %s · dangling %d · reclaimable per the Docker API %s)\n", label, Bytes(im.TotalBytes), im.Dangling, Bytes(im.ReclaimableBytes))
 	if n > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  IMAGE\tSIZE\tSHARED\tUNIQUE IF REMOVED\tCONTAINERS\tPROJECTS")

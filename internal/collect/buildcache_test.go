@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/maximilianfeix/dockdu/internal/engine"
+	"github.com/maximilianfeix/dockdu/internal/report"
 )
 
 func rec(id string, size int64, shared, inUse bool) engine.CacheRecord {
@@ -119,5 +120,125 @@ func TestBuildCacheNegativePrivateIsUnknown(t *testing.T) {
 	got, _ := BuildCache(s)
 	if got.PrivateBytes != -1 {
 		t.Fatalf("private must be unknown (-1) when records exceed the daemon total, got %d", got.PrivateBytes)
+	}
+}
+
+// legacyCache is what moby/client v0.6.2 synthesises for daemons on API
+// < 1.52 (Docker Engine 28 and older): TotalSize and Reclaimable are
+// computed client-side from the records and leave shared records out.
+func legacyCache(api string) *engine.Snapshot {
+	return &engine.Snapshot{
+		Daemon: engine.Daemon{APIVersion: api},
+		// TotalSize = Σ !Shared = 200 + 100; Reclaimable = Σ !Shared && !InUse = 200.
+		Totals: engine.Totals{BuildCache: engine.Aggregate{TotalCount: 3, TotalSize: 300, Reclaimable: 200}},
+		BuildCache: []engine.CacheRecord{
+			rec("a", 300, true, false),
+			rec("b", 200, false, false),
+			rec("c", 100, false, true),
+		},
+	}
+}
+
+func TestBuildCacheLegacyAPITotalExcludesShared(t *testing.T) {
+	for _, api := range []string{"1.51", "1.44", ""} {
+		got, warns := BuildCache(legacyCache(api))
+		if len(warns) != 0 {
+			t.Fatalf("api %q: a legacy total is expected, not a mismatch: %v", api, warns)
+		}
+		if got.TotalBytes != 600 || got.SharedBytes != 300 || got.PrivateBytes != 300 {
+			t.Fatalf("api %q: total/shared/private = %d/%d/%d, want 600/300/300", api, got.TotalBytes, got.SharedBytes, got.PrivateBytes)
+		}
+		if got.SharedCountedInDfBytes != 0 {
+			t.Fatalf("api %q: df's build cache row has no shared bytes to subtract, got %d", api, got.SharedCountedInDfBytes)
+		}
+		if got.ReclaimableBytes != 200 || got.NotFreedByPrune != 400 {
+			t.Fatalf("api %q: reclaimable/not freed = %d/%d", api, got.ReclaimableBytes, got.NotFreedByPrune)
+		}
+	}
+}
+
+func TestBuildCacheCurrentAPICountsSharedInDf(t *testing.T) {
+	s := legacyCache("1.53")
+	s.Totals.BuildCache.TotalSize = 600 // API >= 1.52: the daemon total includes shared records
+	got, warns := BuildCache(s)
+	if len(warns) != 0 || got.TotalBytes != 600 || got.SharedCountedInDfBytes != 300 {
+		t.Fatalf("got %+v, warnings %v", got, warns)
+	}
+}
+
+func TestBuildCacheSharedSubtractionNeverExceedsDfRow(t *testing.T) {
+	// The daemon reports 0 for the row but records exist: nothing of the row
+	// can be subtracted, whatever the records say.
+	s := &engine.Snapshot{Daemon: engine.Daemon{APIVersion: "1.53"}, BuildCache: []engine.CacheRecord{rec("a", 50, true, false)}}
+	got, _ := BuildCache(s)
+	if got.SharedCountedInDfBytes != 0 {
+		t.Fatalf("shared subtracted from df must be ≤ the df row (0), got %d", got.SharedCountedInDfBytes)
+	}
+}
+
+func TestBuildLegacyDaemonSummaryDoesNotSubtractSharedTwice(t *testing.T) {
+	s := legacyCache("1.51")
+	s.Totals.Images.TotalSize = 1000
+	r := Build(s, t.TempDir(), time.Unix(0, 0), "test")
+	// df = images 1000 + build cache 300 (already without shared); no logs.
+	if r.Summary.DfReportedBytes != 1300 || r.Summary.DockerBytesTotal != 1300 || r.Summary.BuildCacheSharedBytes != 0 {
+		t.Fatalf("summary %+v", r.Summary)
+	}
+}
+
+// FuzzBuildCache checks invariants that must hold for any daemon answer,
+// including inconsistent or hostile ones: no panic, the bytes subtracted
+// from df never exceed df's row, and byte figures are either known (>= 0)
+// or the explicit unknown -1.
+func FuzzBuildCache(f *testing.F) {
+	f.Add(int64(600), int64(200), "1.53", int64(300), true, false, int64(200), false, false, int64(100), false, true)
+	f.Add(int64(300), int64(200), "1.51", int64(300), true, false, int64(200), false, false, int64(100), false, true)
+	f.Add(int64(0), int64(0), "", int64(-5), false, false, int64(1<<62), true, true, int64(1<<62), false, false)
+	f.Fuzz(func(t *testing.T, dfTotal, reclaim int64, api string, s1 int64, sh1, in1 bool, s2 int64, sh2, in2 bool, s3 int64, sh3, in3 bool) {
+		for _, v := range []int64{s1, s2, s3} {
+			if v < 0 || v > 1<<50 { // the daemon reports sizes >= 0; keep sums far from overflow
+				t.Skip()
+			}
+		}
+		if dfTotal < 0 || dfTotal > 1<<52 || reclaim < 0 || reclaim > 1<<52 {
+			t.Skip()
+		}
+		s := &engine.Snapshot{
+			Daemon: engine.Daemon{APIVersion: api},
+			Totals: engine.Totals{BuildCache: engine.Aggregate{TotalSize: dfTotal, Reclaimable: reclaim}},
+			BuildCache: []engine.CacheRecord{
+				rec("a", s1, sh1, in1), rec("b", s2, sh2, in2), rec("c", s3, sh3, in3),
+			},
+		}
+		got, _ := BuildCache(s)
+		if got.SharedCountedInDfBytes < 0 || got.SharedCountedInDfBytes > dfTotal {
+			t.Fatalf("subtracted %d from a df row of %d", got.SharedCountedInDfBytes, dfTotal)
+		}
+		if got.SharedCountedInDfBytes > got.SharedBytes {
+			t.Fatalf("subtracted %d but only %d is shared", got.SharedCountedInDfBytes, got.SharedBytes)
+		}
+		if got.PrivateBytes < -1 || got.TotalBytes < 0 || got.NotFreedByPrune < 0 || got.SharedBytes < 0 {
+			t.Fatalf("negative figure: %+v", got)
+		}
+		sum := Summarize(report.Summary{DfReportedBytes: dfTotal, DfBuildCache: dfTotal}, got.SharedCountedInDfBytes, report.Logs{Complete: true})
+		if sum.DockerBytesTotal < 0 {
+			t.Fatalf("negative total %d", sum.DockerBytesTotal)
+		}
+	})
+}
+
+func TestBuildCacheMismatchMakesSummaryIncomplete(t *testing.T) {
+	// API 1.53, df row 0, only shared records: not the legacy rule.
+	s := &engine.Snapshot{Daemon: engine.Daemon{APIVersion: "1.53"}, BuildCache: []engine.CacheRecord{rec("a", 50, true, false)}}
+	got, warns := BuildCache(s)
+	if got.DfRowExcludesShared || !got.DfRowMismatch || len(warns) == 0 {
+		t.Fatalf("want a warned mismatch, got %+v %v", got, warns)
+	}
+	if r := Build(s, t.TempDir(), time.Unix(0, 0), "test"); r.Summary.Complete {
+		t.Fatalf("a build cache mismatch makes the summary a lower bound: %+v", r.Summary)
+	}
+	legacy, _ := BuildCache(legacyCache("1.51"))
+	if !legacy.DfRowExcludesShared || legacy.DfRowMismatch {
+		t.Fatalf("legacy rule must be recognised, got %+v", legacy)
 	}
 }

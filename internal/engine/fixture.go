@@ -46,20 +46,32 @@ func LoadFixture(path string) (*Snapshot, error) {
 // overwrite is false. Recording never silently replaces test data.
 var ErrFixtureExists = errors.New("fixture exists; pass overwrite to replace it")
 
-// WriteFixture stores a sanitised snapshot as indented JSON.
+// WriteFixture stores a sanitised snapshot as indented JSON. Without
+// overwrite the file is created with O_EXCL, so an existing file or a
+// symlink planted at path is never replaced (no stat-then-write race).
 func WriteFixture(path string, s *Snapshot, overwrite bool) error {
-	if !overwrite {
-		if _, err := os.Stat(path); err == nil {
-			return fmt.Errorf("%w: %s", ErrFixtureExists, path)
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-	}
 	raw, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(raw, '\n'), 0o644)
+	flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	if !overwrite {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	}
+	f, err := os.OpenFile(path, flags, 0o644)
+	if errors.Is(err, fs.ErrExist) {
+		return fmt.Errorf("%w: %s", ErrFixtureExists, path)
+	}
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(append(raw, '\n'))
+	cerr := f.Close()
+	if werr != nil || cerr != nil {
+		_ = os.Remove(path) // never leave a partial fixture behind
+		return errors.Join(werr, cerr)
+	}
+	return nil
 }
 
 // Record takes a snapshot from e, sanitises it and writes it to path.

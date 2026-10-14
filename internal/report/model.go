@@ -6,19 +6,24 @@ package report
 
 import "time"
 
+// SchemaVersion identifies the JSON contract. It changes only when a field
+// is removed, renamed or changes meaning; adding fields keeps it.
+const SchemaVersion = 1
+
 // Report is the whole document `dockdu --json` serialises.
 type Report struct {
-	Version    string     `json:"version"`
-	TakenAt    time.Time  `json:"taken_at"`
-	Daemon     Daemon     `json:"daemon"`
-	Summary    Summary    `json:"summary"`
-	BuildCache BuildCache `json:"build_cache"`
-	Logs       Logs       `json:"logs"`
-	Projects   Projects   `json:"projects"`
-	Images     Images     `json:"images"`
-	Volumes    Volumes    `json:"volumes"`
-	Desktop    *Desktop   `json:"desktop,omitempty"`
-	Warnings   []string   `json:"warnings"`
+	SchemaVersion int        `json:"schema_version"`
+	Version       string     `json:"version"`
+	TakenAt       time.Time  `json:"taken_at"`
+	Daemon        Daemon     `json:"daemon"`
+	Summary       Summary    `json:"summary"`
+	BuildCache    BuildCache `json:"build_cache"`
+	Logs          Logs       `json:"logs"`
+	Projects      Projects   `json:"projects"`
+	Images        Images     `json:"images"`
+	Volumes       Volumes    `json:"volumes"`
+	Desktop       *Desktop   `json:"desktop,omitempty"`
+	Warnings      []string   `json:"warnings"`
 }
 
 // Daemon identifies where the numbers came from.
@@ -50,12 +55,21 @@ type Summary struct {
 	// be measured; LogBytes is then a lower bound.
 	LogBytesComplete bool `json:"log_bytes_complete"`
 	// BuildCacheSharedBytes are build-cache bytes that also belong to an
-	// image; df counts them in both rows, dockdu subtracts them once.
+	// image and that df counts in both rows; dockdu subtracts them once.
+	// It is BuildCache.SharedCountedInDfBytes: 0 for daemons whose build
+	// cache row already leaves shared records out.
 	BuildCacheSharedBytes int64 `json:"build_cache_shared_bytes"`
 	// DockerBytesTotal = DfReportedBytes − BuildCacheSharedBytes + LogBytes.
 	// Shared layers are counted once, as df does: a resource total, not a
 	// disk-block count.
 	DockerBytesTotal int64 `json:"docker_bytes_total"`
+	// VolumeSizesUnknown counts volumes whose size the daemon did not report
+	// (non-local drivers); df and the total leave them out.
+	VolumeSizesUnknown int `json:"volume_sizes_unknown"`
+	// Complete is false when the total is a lower bound: logs not fully
+	// measured, volume sizes unknown, or df's build cache row disagreeing
+	// with the records.
+	Complete bool `json:"complete"`
 	// NotShownByDf is the log bytes: the only part df does not report.
 	NotShownByDf int64    `json:"not_shown_by_df_bytes"`
 	Suggestions  []string `json:"suggestions"`
@@ -63,14 +77,25 @@ type Summary struct {
 
 // BuildCache follows SPEC §6.4.
 type BuildCache struct {
-	Records          int      `json:"records"`
-	TotalBytes       int64    `json:"total_bytes"`
-	SharedBytes      int64    `json:"shared_bytes"`
-	PrivateBytes     int64    `json:"private_bytes"`
-	ReclaimableBytes int64    `json:"reclaimable_bytes"`
-	NotFreedByPrune  int64    `json:"not_freed_by_prune_bytes"`
-	InUseBytes       int64    `json:"in_use_bytes"`
-	Suggestions      []string `json:"suggestions"`
+	Records          int   `json:"records"`
+	TotalBytes       int64 `json:"total_bytes"`
+	SharedBytes      int64 `json:"shared_bytes"`
+	PrivateBytes     int64 `json:"private_bytes"`
+	ReclaimableBytes int64 `json:"reclaimable_bytes"`
+	NotFreedByPrune  int64 `json:"not_freed_by_prune_bytes"`
+	InUseBytes       int64 `json:"in_use_bytes"`
+	// SharedCountedInDfBytes is the part of SharedBytes that df's build
+	// cache row contains. Daemons on API >= 1.52 include shared records in
+	// the row; for older daemons the client computes the row without them,
+	// so this is 0 and the summary subtracts nothing.
+	SharedCountedInDfBytes int64 `json:"shared_counted_in_df_bytes"`
+	// DfRowExcludesShared is true when df's row follows the pre-1.52 rule
+	// (shared records left out).
+	DfRowExcludesShared bool `json:"df_row_excludes_shared"`
+	// DfRowMismatch is true when df's row matches neither rule; the summary
+	// total is then a lower bound.
+	DfRowMismatch bool     `json:"df_row_mismatch"`
+	Suggestions   []string `json:"suggestions"`
 }
 
 // Logs lists container log files on disk.
@@ -108,7 +133,13 @@ type Projects struct {
 	Items            []Project `json:"items"`
 	TotalBytes       int64     `json:"total_bytes"`
 	SharedImageBytes int64     `json:"shared_image_bytes"`
-	Suggestions      []string  `json:"suggestions"`
+	// ImageOverlapBytes is how much the image sizes summed here exceed df's
+	// image row, which counts every layer once: a lower bound for base
+	// layers shared between different images. Project image columns use
+	// per-image sizes, so they are not additive by this much. 0 when df's
+	// image row is not larger or not reported.
+	ImageOverlapBytes int64    `json:"image_overlap_bytes"`
+	Suggestions       []string `json:"suggestions"`
 }
 
 // Project is one compose project (or the "(none)" bucket).

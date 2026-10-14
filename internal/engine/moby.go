@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/moby/moby/client"
@@ -14,11 +15,21 @@ type Moby struct {
 	cli *client.Client
 }
 
-// NewMoby connects using the standard DOCKER_* environment variables.
-// API version negotiation is the client's default. Connecting is lazy; the
-// first call reports ErrDaemonUnreachable when the socket is not there.
+// inspectWorkers bounds concurrent ContainerInspect calls. Each inspect is
+// a cheap metadata read; a small pool hides socket round trips on hosts with
+// many containers without flooding the daemon. A variable only so the
+// benchmark can compare against sequential inspection.
+var inspectWorkers = 4
+
+// NewMoby connects using the standard DOCKER_* environment variables; opts
+// (for example from ResolveTarget) are applied after them. API version
+// negotiation is the client's default. Every request passes readOnlyGuard,
+// which refuses anything but GET/HEAD on the four endpoints dockdu reads.
+// Connecting is lazy; the first call reports ErrDaemonUnreachable when the
+// socket is not there.
 func NewMoby(opts ...client.Opt) (*Moby, error) {
 	all := append([]client.Opt{client.FromEnv}, opts...)
+	all = append(all, client.WithHTTPRequestHook(readOnlyGuard))
 	cli, err := client.New(all...)
 	if err != nil {
 		return nil, fmt.Errorf("create docker client: %w", err)
@@ -93,31 +104,79 @@ func (m *Moby) Snapshot(ctx context.Context) (*Snapshot, error) {
 			UsageCount: r.UsageCount,
 		})
 	}
-	for _, c := range du.Containers.Items {
-		ct := Container{
+	s.Containers = make([]Container, len(du.Containers.Items))
+	for i, c := range du.Containers.Items {
+		s.Containers[i] = Container{
 			ID: c.ID, Name: primaryName(c.Names), Image: c.Image, ImageID: c.ImageID, Created: c.Created,
 			State: string(c.State), Status: c.Status, SizeRw: c.SizeRw, SizeRootFs: c.SizeRootFs, Labels: copyMap(c.Labels),
 		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
+	}
+	if err := m.inspectAll(ctx, s.Containers); err != nil {
+		return nil, err
+	}
+	// Warnings in container order, independent of which worker finished first.
+	for _, ct := range s.Containers {
+		if ct.InspectError != "" {
+			s.Warnings = append(s.Warnings, fmt.Sprintf("inspect %s (%s): %s", ct.Name, short(ct.ID), ct.InspectError))
 		}
-		ins, err := m.cli.ContainerInspect(ctx, c.ID, client.ContainerInspectOptions{})
-		if err != nil {
-			if client.IsErrConnectionFailed(err) {
-				return nil, wrapConn("inspect", err)
-			}
-			ct.InspectError = err.Error()
-			s.Warnings = append(s.Warnings, fmt.Sprintf("inspect %s (%s): %v", ct.Name, short(c.ID), err))
-		} else {
-			ct.LogPath = ins.Container.LogPath
-			if hc := ins.Container.HostConfig; hc != nil {
-				ct.LogDriver = hc.LogConfig.Type
-				ct.LogOpts = copyMap(hc.LogConfig.Config)
-			}
-		}
-		s.Containers = append(s.Containers, ct)
 	}
 	return s, nil
+}
+
+// inspectAll fills the logging facts of every container with at most
+// inspectWorkers concurrent ContainerInspect calls. A failed inspect is
+// recorded on the container; a lost connection or a cancelled context
+// fails the whole snapshot.
+func (m *Moby) inspectAll(ctx context.Context, cs []Container) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan int)
+	var (
+		wg       sync.WaitGroup
+		once     sync.Once
+		fatalErr error
+	)
+	fail := func(err error) {
+		once.Do(func() { fatalErr = err; cancel() })
+	}
+	for range min(inspectWorkers, len(cs)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				ct := &cs[i]
+				ins, err := m.cli.ContainerInspect(ctx, ct.ID, client.ContainerInspectOptions{})
+				switch {
+				case err == nil:
+					ct.LogPath = ins.Container.LogPath
+					if hc := ins.Container.HostConfig; hc != nil {
+						ct.LogDriver = hc.LogConfig.Type
+						ct.LogOpts = copyMap(hc.LogConfig.Config)
+					}
+				case client.IsErrConnectionFailed(err):
+					fail(wrapConn("inspect", err))
+				case ctx.Err() != nil:
+					fail(ctx.Err())
+				default:
+					ct.InspectError = err.Error()
+				}
+			}
+		}()
+	}
+feed:
+	for i := range cs {
+		select {
+		case jobs <- i:
+		case <-ctx.Done():
+			break feed
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	if fatalErr != nil {
+		return fatalErr
+	}
+	return ctx.Err()
 }
 
 func wrapConn(op string, err error) error {

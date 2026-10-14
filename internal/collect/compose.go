@@ -83,7 +83,7 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 	}
 
 	owners := imageProjects(s)
-	var sharedOnce int64
+	var sharedOnce, imageSum int64
 	seenImage := make(map[string]bool, len(s.Images))
 	for _, im := range s.Images {
 		if im.ID != "" && seenImage[im.ID] {
@@ -94,6 +94,7 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 		if size < 0 {
 			size = 0 // unknown image size: not added, never negative
 		}
+		imageSum += size
 		ps, used := owners[im.ID]
 		switch {
 		case !used && isDangling(im):
@@ -151,6 +152,9 @@ func Projects(s *engine.Snapshot, logs report.Logs, now time.Time) (report.Proje
 		out.Items = append(out.Items, *r)
 	}
 	out.TotalBytes += sharedOnce // shared images counted exactly once at section level
+	if df := s.Totals.Images.TotalSize; df > 0 && imageSum > df {
+		out.ImageOverlapBytes = imageSum - df
+	}
 	sort.SliceStable(out.Items, func(i, j int) bool {
 		a, b := out.Items[i], out.Items[j]
 		if (a.Name == noneProject) != (b.Name == noneProject) {
