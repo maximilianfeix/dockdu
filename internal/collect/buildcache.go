@@ -82,13 +82,19 @@ func BuildCache(s *engine.Snapshot) (report.BuildCache, []string) {
 		DfRowMismatch:          mismatch,
 		Suggestions:            []string{},
 	}
+	if containerdStore(s) && shared > 0 {
+		// A shared record can keep its own copy on the containerd image
+		// store; how much a prune frees is not reported by Docker.
+		out.SharedMayBeFreedByPrune = true
+		out.NotFreedByPrune = -1
+	}
 	if out.PrivateBytes < 0 {
 		// The daemon total and the records disagree; unknown, not 0.
 		out.PrivateBytes = -1
 	}
 	// Engine rule (moby builder.go): reclaimable + Σ(shared || in use) == Σ
 	// records. It holds for the legacy client computation too.
-	if records > 0 && dfTotal > 0 && out.ReclaimableBytes+notFreed != sum {
+	if records > 0 && dfTotal > 0 && out.ReclaimableBytes+notFreed != sum && !out.SharedMayBeFreedByPrune {
 		warns = append(warns, fmt.Sprintf("build cache: daemon reclaimable %d + not-freed %d ≠ total %d; the reclaimable figure is the daemon's and may be stale", out.ReclaimableBytes, notFreed, sum))
 	}
 	if out.ReclaimableBytes > 0 {

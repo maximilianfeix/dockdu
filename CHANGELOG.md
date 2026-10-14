@@ -4,6 +4,9 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+- Containerd image store (default on fresh Engine 29 and on Docker Desktop): build cache shared with images is no longer reported as "prune would NOT free". On that store a shared record can keep its own copy; measured with `docker builder prune -af` on disposable daemons, Engine 29.9 freed 72.7 of 140.7 MiB (and 56.8 of 108.7 MiB) of shared records, while Engine 28.5 on overlay2 freed none. `build_cache.not_freed_by_prune_bytes` is now -1 there, `build_cache.shared_may_be_freed_by_prune` is true, the summary is a lower bound, and `daemon.image_store` says which store is in use.
+
 ### Added
 - The filesystem holding the data root (used, size, free) when the data root is visible, and `--disk`: a `du -sx`-style walk of the data root (lstat only, hard links once, other filesystems not entered, bounded) that reports allocated bytes per top-level entry and the space outside the data root on the same filesystem. JSON: `filesystem`, `filesystem.data_root_on_disk`.
 

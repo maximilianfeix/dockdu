@@ -38,6 +38,10 @@ type Daemon struct {
 	StorageDriver   string `json:"storage_driver"`
 	LoggingDriver   string `json:"logging_driver"`
 	DataRoot        string `json:"data_root"`
+	// ImageStore is "containerd" (containerd image store, the default on
+	// fresh Engine 29 installs and Docker Desktop) or "graphdriver"
+	// (overlay2 and other graph drivers). Build cache accounting differs.
+	ImageStore string `json:"image_store"`
 	// ReportedDataRoot is the daemon\'s own data root when --data-root
 	// overrode it; DataRoot is then the path dockdu actually read.
 	ReportedDataRoot string `json:"reported_data_root,omitempty"`
@@ -70,8 +74,9 @@ type Summary struct {
 	// (non-local drivers); df and the total leave them out.
 	VolumeSizesUnknown int `json:"volume_sizes_unknown"`
 	// Complete is false when the total is a lower bound: logs not fully
-	// measured, volume sizes unknown, or df's build cache row disagreeing
-	// with the records.
+	// measured, volume sizes unknown, df's build cache row disagreeing with
+	// the records, or shared build cache on the containerd image store,
+	// which may hold its own copy next to the image.
 	Complete bool `json:"complete"`
 	// NotShownByDf is the log bytes: the only part df does not report.
 	NotShownByDf int64    `json:"not_shown_by_df_bytes"`
@@ -97,8 +102,14 @@ type BuildCache struct {
 	DfRowExcludesShared bool `json:"df_row_excludes_shared"`
 	// DfRowMismatch is true when df's row matches neither rule; the summary
 	// total is then a lower bound.
-	DfRowMismatch bool     `json:"df_row_mismatch"`
-	Suggestions   []string `json:"suggestions"`
+	DfRowMismatch bool `json:"df_row_mismatch"`
+	// SharedMayBeFreedByPrune is true on the containerd image store, where a
+	// build cache record shared with an image can still keep its own copy of
+	// the data, so a prune frees an unknown part of SharedBytes and
+	// NotFreedByPrune is -1. Measured 2026-10-14: Engine 29.9 freed 72.7 of
+	// 140.7 MiB of shared records; Engine 28.5 on overlay2 freed none.
+	SharedMayBeFreedByPrune bool     `json:"shared_may_be_freed_by_prune"`
+	Suggestions             []string `json:"suggestions"`
 }
 
 // Logs lists container log files on disk.
