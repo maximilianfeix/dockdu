@@ -59,7 +59,7 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 
 ## State on 2026-10-14 (late night)
 
-- **Released:** v0.3.0 (containerd prune fix, `--disk`), v0.3.1 (80-column output, least-privilege workflows, x/sys v0.44.0) and v0.3.2 (unit-wrap fix). All three are verified: archives with checksums, ghcr, cask, `go install`, brew.
+- **Released:** v0.3.0 (containerd prune fix, `--disk`), v0.3.1 (80-column output, least-privilege workflows, x/sys v0.44.0), v0.3.2 (unit-wrap fix) and v0.3.3 (rootless daemon.json hint, os.Root for logs). All four are verified: archives with checksums, ghcr, cask, `go install`, brew. Rootless Docker is tested end to end.
 - **`main` is protected** by ruleset 25113118: PR required; `test`, `integration` and `analyze` must pass; no force push or deletion.
 - **Launch:**
   - dev.to article published;
@@ -74,7 +74,7 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 ## Next executable steps
 
 1. Watch awesome-docker#1578 and cli-apps#509 and answer reviewers the same day.
-2. One X post (text in overnight-log.md) when the account has not posted for a few hours; no repeats.
+2. X: one post published (22:13). No repeats; answer genuine replies. Stop the promotional replies a parallel session posted under unrelated threads.
 3. Weekly measurement (docs/growth/measurement.md). Don't count the agent's own downloads.
 4. Homebrew `postflight` deprecation: switch to `postflight_steps` once GoReleaser supports it, or use `custom_block`.
 5. Finish the Terminal Trove form by hand; send the Console.dev email (text in launch-kit/submissions.md).
