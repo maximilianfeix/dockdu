@@ -4,7 +4,7 @@ A fresh session continues from here. Read SPEC.md and CLAUDE.md first.
 
 ## Current phase
 
-v0.1.0 released on 2026-10-13 from `ebf8794`. **v0.2 hardening in progress** on the local branch `v0.2-hardening` (2026-10-14, 13 commits on top of `main` @ 88ea155, **not pushed**, no PR yet). Audit and plan: `docs/audits/product-and-engineering-audit.md`. SPEC.md §13 lists the contract additions.
+v0.1.0 released on 2026-10-13 from `ebf8794`. **v0.2 hardening in progress** on the local branch `v0.2-hardening` (2026-10-14, 16 commits on top of `main` @ 88ea155, **not pushed**, no PR yet). Audit and plan: `docs/audits/product-and-engineering-audit.md`. SPEC.md §13 lists the contract additions.
 
 ### v0.2-hardening: done and verified (2026-10-14)
 
@@ -74,7 +74,7 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 
 ## Next executable steps (in order)
 
-1. Read the independent review result in this session's report (or re-run `/code-review` on the branch), fix confirmed findings.
+1. Independent Go review done on 2026-10-14: no P0/P1. One P2 (build-cache row mismatch not marking the summary incomplete) and four P3 items were fixed in 42ec0e0. Still open from it (P3): the guard refuses tcp:// hosts with a URL path prefix (fails closed); stray DOCKER_CERT_PATH/DOCKER_TLS_VERIFY also apply to context hosts.
 2. Push `v0.2-hardening` and open a PR (needs the owner's go-ahead; this session pushed nothing). The leftover local branch `hardening-v0.2` holds the same work in one mixed commit; delete it once the PR is merged (ask first).
 3. On a Linux test host: run `scripts/demo-up.sh`, record `docker system df` and dockdu output in `docs/demo/walkthrough.md`, run `scripts/demo-down.sh`. If possible repeat on an Engine 28 host to verify P0-1 at runtime, and record a fixture with `DOCKDU_RECORD_FIXTURE` for a regression test.
 4. Regenerate `docs/demo.gif` (`vhs demo.tape`) from a real run and update the README sample output.
