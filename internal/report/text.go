@@ -153,7 +153,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 
 	im := r.Images
 	n, label = limit(len(im.Items))
-	p("\nIMAGES  (%s · total %s · dangling %d · reclaimable (as df counts it) %s)\n", label, Bytes(im.TotalBytes), im.Dangling, Bytes(im.ReclaimableBytes))
+	p("\nIMAGES  (%s · total %s · dangling %d · reclaimable per the Docker API %s)\n", label, Bytes(im.TotalBytes), im.Dangling, Bytes(im.ReclaimableBytes))
 	if n > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  IMAGE\tSIZE\tSHARED\tUNIQUE IF REMOVED\tCONTAINERS\tPROJECTS")

@@ -23,7 +23,7 @@ COMPOSE PROJECTS  (total 36.7 GiB · images used by several projects counted onc
   shop     4           3.9 GiB  +476.8 MiB (1)  12.1 GiB  6.2 GiB             22.2 GiB
   (none)   2           1.0 GiB  -               13.0 GiB  0 B (1 unmeasured)  14.0 GiB  3 orphan volume(s), 7 dangling image(s), 1 stopped > 7 d, 1 volume size(s) unknown
 
-IMAGES  (3 · total 5.0 GiB · dangling 1 · reclaimable (as df counts it) 1.1 GiB)
+IMAGES  (3 · total 5.0 GiB · dangling 1 · reclaimable per the Docker API 1.1 GiB)
   IMAGE                SIZE       SHARED    UNIQUE IF REMOVED  CONTAINERS  PROJECTS
   shop:1 (+1)          3.9 GiB    0 B       unknown            2           shop
   postgres:16          476.8 MiB  95.4 MiB  unknown            2           blog,shop
