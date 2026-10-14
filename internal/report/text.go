@@ -26,7 +26,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	p := func(format string, a ...any) { fmt.Fprintf(&b, format, a...) }
 	sug := func(ss []string) {
 		for _, s := range ss {
-			p("  → %s\n", s)
+			p("  → %s\n", safe(s)) // defence in depth: names inside are daemon data
 		}
 	}
 	limit := func(n int) (int, string) {

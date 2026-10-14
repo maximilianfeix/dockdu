@@ -133,3 +133,34 @@ func TestWriteTextLegacyDaemonSaysNothingWasSubtracted(t *testing.T) {
 		t.Fatalf("legacy summary line wrong:\n%s", out)
 	}
 }
+
+func TestSuggestVolumeRmQuotesDaemonNames(t *testing.T) {
+	cases := map[string]string{
+		"pgdata":          "docker volume rm pgdata   #",
+		"x; rm -rf ~":     "docker volume rm 'x; rm -rf ~'   #",
+		"it's":            `docker volume rm 'it'\''s'   #`,
+		"$(touch /tmp/p)": "docker volume rm '$(touch /tmp/p)'   #",
+		"-rf":             "docker volume rm '-rf'   #",
+	}
+	for name, prefix := range cases {
+		if got := SuggestVolumeRm(name); !strings.HasPrefix(got, prefix) {
+			t.Errorf("SuggestVolumeRm(%q) = %q, want prefix %q", name, got, prefix)
+		}
+	}
+	got := SuggestVolumeRm("evil\x1b]0;pwned\x07")
+	if strings.HasPrefix(got, "docker") || strings.ContainsAny(got, "\x1b\x07") {
+		t.Errorf("a name with control characters must not become a command or reach the terminal raw: %q", got)
+	}
+}
+
+func TestWriteTextNeutralisesControlCharactersInSuggestions(t *testing.T) {
+	r := goldenReport()
+	r.Volumes.Suggestions = []string{"docker volume rm x\x1b[2J"}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "\x1b") {
+		t.Fatal("escape sequence reached the terminal output")
+	}
+}
