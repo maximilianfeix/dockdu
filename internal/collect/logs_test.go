@@ -203,3 +203,25 @@ func TestLogsInvisibleDataRootWarnsOnce(t *testing.T) {
 		t.Fatalf("items must stay unmeasured with a note: %+v", got.Items)
 	}
 }
+
+// A container directory replaced by a symlink to a directory outside the
+// data root must not be listed: dockdu would otherwise report sizes of
+// files it was never meant to see (security audit S3).
+func TestLogsDoNotFollowContainerDirSymlinkOutOfRoot(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "docker")
+	outside := filepath.Join(base, "elsewhere")
+	id := "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	writeFile(t, filepath.Join(outside, id+"-json.log"), 4096)
+	if err := os.MkdirAll(filepath.Join(root, "containers"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "containers", id)); err != nil {
+		t.Fatal(err)
+	}
+	s := &engine.Snapshot{Containers: []engine.Container{{ID: id, Name: "swapped", LogDriver: "json-file"}}}
+	got, _ := Logs(s, root)
+	if it := got.Items[0]; it.Measured || it.Bytes != -1 || got.Complete {
+		t.Fatalf("a symlink escaping the data root must leave the container unmeasured, got %+v", it)
+	}
+}
