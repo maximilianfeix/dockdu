@@ -2,7 +2,6 @@ package collect
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -111,15 +110,4 @@ func apiBefore(v string, major, minor int) bool {
 		return false
 	}
 	return a < major || (a == major && b < minor)
-}
-
-// sortCacheRecords orders records by size descending, then ID, for stable
-// output. Exported collectors use it before rendering lists.
-func sortCacheRecords(rs []engine.CacheRecord) {
-	sort.SliceStable(rs, func(i, j int) bool {
-		if rs[i].Size != rs[j].Size {
-			return rs[i].Size > rs[j].Size
-		}
-		return rs[i].ID < rs[j].ID
-	})
 }
