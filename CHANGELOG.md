@@ -4,6 +4,10 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.3.3] - 2026-10-14
+
 ### Fixed
 - Rootless daemons (detected from `SecurityOptions` `name=rootless`, reported as `daemon.rootless`): the log rotation hint names `~/.config/docker/daemon.json` instead of `/etc/docker/daemon.json`. Verified on `docker:29-dind-rootless`, where dockdu followed a CLI-created context and measured the logs as uid 1000.
 
@@ -62,7 +66,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/maximilianfeix/dockdu/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/maximilianfeix/dockdu/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/maximilianfeix/dockdu/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maximilianfeix/dockdu/compare/v0.2.0...v0.3.0
