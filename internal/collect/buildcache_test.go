@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/maximilianfeix/dockdu/internal/engine"
+	"github.com/maximilianfeix/dockdu/internal/report"
 )
 
 func rec(id string, size int64, shared, inUse bool) engine.CacheRecord {
@@ -183,4 +184,45 @@ func TestBuildLegacyDaemonSummaryDoesNotSubtractSharedTwice(t *testing.T) {
 	if r.Summary.DfReportedBytes != 1300 || r.Summary.DockerBytesTotal != 1300 || r.Summary.BuildCacheSharedBytes != 0 {
 		t.Fatalf("summary %+v", r.Summary)
 	}
+}
+
+// FuzzBuildCache checks invariants that must hold for any daemon answer,
+// including inconsistent or hostile ones: no panic, the bytes subtracted
+// from df never exceed df's row, and byte figures are either known (>= 0)
+// or the explicit unknown -1.
+func FuzzBuildCache(f *testing.F) {
+	f.Add(int64(600), int64(200), "1.53", int64(300), true, false, int64(200), false, false, int64(100), false, true)
+	f.Add(int64(300), int64(200), "1.51", int64(300), true, false, int64(200), false, false, int64(100), false, true)
+	f.Add(int64(0), int64(0), "", int64(-5), false, false, int64(1<<62), true, true, int64(1<<62), false, false)
+	f.Fuzz(func(t *testing.T, dfTotal, reclaim int64, api string, s1 int64, sh1, in1 bool, s2 int64, sh2, in2 bool, s3 int64, sh3, in3 bool) {
+		for _, v := range []int64{s1, s2, s3} {
+			if v < 0 || v > 1<<50 { // the daemon reports sizes >= 0; keep sums far from overflow
+				t.Skip()
+			}
+		}
+		if dfTotal < 0 || dfTotal > 1<<52 || reclaim < 0 || reclaim > 1<<52 {
+			t.Skip()
+		}
+		s := &engine.Snapshot{
+			Daemon: engine.Daemon{APIVersion: api},
+			Totals: engine.Totals{BuildCache: engine.Aggregate{TotalSize: dfTotal, Reclaimable: reclaim}},
+			BuildCache: []engine.CacheRecord{
+				rec("a", s1, sh1, in1), rec("b", s2, sh2, in2), rec("c", s3, sh3, in3),
+			},
+		}
+		got, _ := BuildCache(s)
+		if got.SharedCountedInDfBytes < 0 || got.SharedCountedInDfBytes > dfTotal {
+			t.Fatalf("subtracted %d from a df row of %d", got.SharedCountedInDfBytes, dfTotal)
+		}
+		if got.SharedCountedInDfBytes > got.SharedBytes {
+			t.Fatalf("subtracted %d but only %d is shared", got.SharedCountedInDfBytes, got.SharedBytes)
+		}
+		if got.PrivateBytes < -1 || got.TotalBytes < 0 || got.NotFreedByPrune < 0 || got.SharedBytes < 0 {
+			t.Fatalf("negative figure: %+v", got)
+		}
+		sum := Summarize(report.Summary{DfReportedBytes: dfTotal, DfBuildCache: dfTotal}, got.SharedCountedInDfBytes, report.Logs{Complete: true})
+		if sum.DockerBytesTotal < 0 {
+			t.Fatalf("negative total %d", sum.DockerBytesTotal)
+		}
+	})
 }
