@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -55,3 +56,24 @@ func wrapTokens(tokens []string, sep string, firstWidth, restWidth int) []string
 	}
 	return lines
 }
+
+// units are the unit words Bytes prints after a number.
+var units = map[string]bool{"B": true, "KiB": true, "MiB": true, "GiB": true, "TiB": true, "PiB": true}
+
+// words splits prose into wrap tokens, keeping a number and its unit
+// ("140.7 MiB", "0 B") in one token so a line never ends with a bare number.
+func words(text string) []string {
+	f := strings.Fields(text)
+	out := make([]string, 0, len(f))
+	for _, w := range f {
+		unit := strings.TrimRight(w, ".,;:)")
+		if n := len(out); n > 0 && units[unit] && endsWithDigit(out[n-1]) {
+			out[n-1] += " " + w
+			continue
+		}
+		out = append(out, w)
+	}
+	return out
+}
+
+func endsWithDigit(s string) bool { return s != "" && s[len(s)-1] >= '0' && s[len(s)-1] <= '9' }
