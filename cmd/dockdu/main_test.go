@@ -73,14 +73,14 @@ func TestRenderFromFixtureExitCodes(t *testing.T) {
 	}
 	var out, errOut bytes.Buffer
 	// Log directories are not available here, so the report carries warnings → 2.
-	if code := render(s, t.TempDir(), false, false, 10, &out, &errOut); code != 2 {
+	if code := render(s, renderOpts{dataRoot: t.TempDir(), top: 10}, &out, &errOut); code != 2 {
 		t.Fatalf("exit code = %d, want 2 with warnings; stderr=%q", code, errOut.String())
 	}
 	if !strings.Contains(out.String(), "SUMMARY") || !strings.Contains(out.String(), "WARNINGS") {
 		t.Fatalf("text report incomplete: %q", out.String())
 	}
 	out.Reset()
-	if code := render(s, t.TempDir(), false, true, 10, &out, &errOut); code != 2 {
+	if code := render(s, renderOpts{dataRoot: t.TempDir(), asJSON: true, top: 10}, &out, &errOut); code != 2 {
 		t.Fatalf("json exit code = %d, want 2", code)
 	}
 	var doc map[string]any
@@ -108,7 +108,7 @@ func TestRenderExitZeroWhenEverythingIsMeasured(t *testing.T) {
 		mustWrite(t, filepath.Join(dir, c.ID+"-json.log"), 10)
 	}
 	var out, errOut bytes.Buffer
-	if code := render(s, root, false, true, 10, &out, &errOut); code != 0 {
+	if code := render(s, renderOpts{dataRoot: root, asJSON: true, top: 10}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, want 0; stderr=%q stdout=%s", code, errOut.String(), out.String())
 	}
 	var doc struct {
@@ -195,7 +195,7 @@ func TestJSONContract(t *testing.T) {
 		mustWrite(t, filepath.Join(root, "containers", c.ID, c.ID+"-json.log"), 10)
 	}
 	var out, errOut bytes.Buffer
-	render(s, root, false, true, 10, &out, &errOut)
+	render(s, renderOpts{dataRoot: root, asJSON: true, top: 10}, &out, &errOut)
 	if errOut.Len() != 0 {
 		t.Fatalf("--json must keep stderr empty for a rendered report, got %q", errOut.String())
 	}
@@ -232,5 +232,44 @@ func TestJSONContract(t *testing.T) {
 		if !paths[k] {
 			t.Errorf("key %s disappeared from the JSON output; that breaks scripts (bump SchemaVersion if intended)", k)
 		}
+	}
+}
+
+func TestRenderDiskWalk(t *testing.T) {
+	s, err := engine.LoadFixture("../../internal/collect/testdata/desktop-29.2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	for _, c := range s.Containers {
+		if c.LogDriver == "local" {
+			mustWrite(t, filepath.Join(root, "containers", c.ID, "local-logs", "container.log"), 4096)
+			continue
+		}
+		mustWrite(t, filepath.Join(root, "containers", c.ID, c.ID+"-json.log"), 4096)
+	}
+	var out, errOut bytes.Buffer
+	if code := render(s, renderOpts{dataRoot: root, disk: true, asJSON: true, top: 10}, &out, &errOut); code != 0 {
+		t.Fatalf("exit %d, stderr %q, out %s", code, errOut.String(), out.String())
+	}
+	var doc struct {
+		Filesystem struct {
+			UsedBytes int64 `json:"used_bytes"`
+			DataRoot  struct {
+				AllocatedBytes int64 `json:"allocated_bytes"`
+				Complete       bool  `json:"complete"`
+				Outside        int64 `json:"outside_data_root_bytes"`
+				Items          []struct {
+					Name string `json:"name"`
+				} `json:"items"`
+			} `json:"data_root_on_disk"`
+		} `json:"filesystem"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	du := doc.Filesystem.DataRoot
+	if !du.Complete || du.AllocatedBytes <= 0 || du.Outside != doc.Filesystem.UsedBytes-du.AllocatedBytes || len(du.Items) != 1 || du.Items[0].Name != "containers" {
+		t.Fatalf("unexpected disk measurement: %+v", doc.Filesystem)
 	}
 }

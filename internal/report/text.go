@@ -70,7 +70,39 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	} else {
 		p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
 	}
+	if f := r.Filesystem; f != nil {
+		p("  data root filesystem        %-11s used of %s · %s free (allocated blocks, a different measure)\n", Bytes(f.UsedBytes), Bytes(f.SizeBytes), Bytes(f.AvailableBytes))
+	}
 	sug(s.Suggestions)
+
+	if f := r.Filesystem; f != nil && f.DataRoot != nil {
+		du := f.DataRoot
+		status := "complete"
+		if !du.Complete {
+			status = "incomplete, lower bound (see WARNINGS)"
+		}
+		n, label := limit(len(du.Items))
+		p("\nDATA ROOT ON DISK  (%s · allocated blocks · %d entries · %s)\n", safe(f.Path), du.Entries, status)
+		if n > 0 {
+			tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(tw, "  ENTRY (%s)\tON DISK\tENTRIES\n", label)
+			for _, it := range du.Items[:n] {
+				fmt.Fprintf(tw, "  %s\t%s\t%d\n", safe(it.Name), Bytes(it.AllocatedBytes), it.Entries)
+			}
+			tw.Flush()
+		}
+		p("  data root on disk           %s\n", Bytes(du.AllocatedBytes))
+		if du.OutsideDataRootBytes >= 0 {
+			p("  outside the data root       %-11s on the same filesystem, not under %s (approximate: includes filesystem metadata)\n", Bytes(du.OutsideDataRootBytes), safe(f.Path))
+		} else {
+			p("  outside the data root       unknown (the walk was incomplete)\n")
+		}
+		if du.SkippedMounts > 0 {
+			p("  %d mount(s) inside the data root not entered (overlay mounts of running containers, separately mounted volumes)\n", du.SkippedMounts)
+		}
+		p("  Docker's sizes above are logical sizes; these are blocks on disk. Compare the two side by side: if overlay2 or\n")
+		p("  containerd is far larger than images + containers + build cache, the data root holds layers or content Docker does not list.\n")
+	}
 
 	bc := r.BuildCache
 	p("\nBUILD CACHE\n")

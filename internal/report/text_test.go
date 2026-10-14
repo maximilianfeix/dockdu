@@ -185,3 +185,35 @@ func TestWriteTextMarksBuildCacheMismatchAsLowerBound(t *testing.T) {
 		t.Fatalf("mismatch must be named in the lower-bound note:\n%s", buf.String())
 	}
 }
+
+func TestWriteTextDataRootOnDisk(t *testing.T) {
+	r := goldenReport()
+	r.Filesystem = &Filesystem{Path: "/var/lib/docker", SizeBytes: 100 << 30, UsedBytes: 92 << 30, AvailableBytes: 8 << 30,
+		DataRoot: &DiskUsage{AllocatedBytes: 70 << 30, Entries: 1234, Complete: true, SkippedMounts: 3, OutsideDataRootBytes: 22 << 30,
+			Items: []DiskItem{{Name: "overlay2", AllocatedBytes: 50 << 30, Entries: 1000}, {Name: "containers", AllocatedBytes: 20 << 30, Entries: 234}}}}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"data root filesystem        92.0 GiB    used of 100.0 GiB · 8.0 GiB free",
+		"DATA ROOT ON DISK  (/var/lib/docker · allocated blocks · 1234 entries · complete)",
+		"overlay2",
+		"data root on disk           70.0 GiB",
+		"outside the data root       22.0 GiB",
+		"3 mount(s) inside the data root not entered",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	r.Filesystem.DataRoot.Complete, r.Filesystem.DataRoot.OutsideDataRootBytes = false, -1
+	buf.Reset()
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "outside the data root       unknown") || !strings.Contains(buf.String(), "lower bound") {
+		t.Fatalf("incomplete walk must not show an outside figure:\n%s", buf.String())
+	}
+}

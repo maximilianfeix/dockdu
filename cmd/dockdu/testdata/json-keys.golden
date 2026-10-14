@@ -19,6 +19,11 @@
 .daemon.reported_data_root
 .daemon.server_version
 .daemon.storage_driver
+.filesystem
+.filesystem.available_bytes
+.filesystem.path
+.filesystem.size_bytes
+.filesystem.used_bytes
 .images
 .images.count
 .images.dangling
