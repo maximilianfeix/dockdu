@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -108,5 +109,23 @@ func TestStaticReturnsCopy(t *testing.T) {
 	b, _ := st.Snapshot(context.Background())
 	if b.Images[0].Size != 1000 {
 		t.Fatalf("static snapshot was mutated through a copy")
+	}
+}
+
+func TestWriteFixtureDoesNotFollowPlantedSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "precious")
+	if err := os.WriteFile(target, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "fixture.json")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFixture(link, &Snapshot{}, false); !errors.Is(err, ErrFixtureExists) {
+		t.Fatalf("err = %v, want ErrFixtureExists", err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "keep" {
+		t.Fatalf("symlink target was overwritten: %q", b)
 	}
 }
