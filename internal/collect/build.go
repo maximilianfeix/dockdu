@@ -32,6 +32,6 @@ func Build(s *engine.Snapshot, dataRoot string, now time.Time, version string) *
 	r.Warnings = append(r.Warnings, w...)
 	r.Summary = Summarize(DfTotals(s), r.BuildCache.SharedCountedInDfBytes, r.Logs)
 	r.Summary.VolumeSizesUnknown = r.Volumes.UnknownSizes
-	r.Summary.Complete = r.Summary.LogBytesComplete && r.Summary.VolumeSizesUnknown == 0
+	r.Summary.Complete = r.Summary.LogBytesComplete && r.Summary.VolumeSizesUnknown == 0 && !r.BuildCache.DfRowMismatch
 	return r
 }

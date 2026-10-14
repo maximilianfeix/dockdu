@@ -65,11 +65,13 @@ func WriteFixture(path string, s *Snapshot, overwrite bool) error {
 	if err != nil {
 		return err
 	}
-	if _, err := f.Write(append(raw, '\n')); err != nil {
-		f.Close()
-		return err
+	_, werr := f.Write(append(raw, '\n'))
+	cerr := f.Close()
+	if werr != nil || cerr != nil {
+		_ = os.Remove(path) // never leave a partial fixture behind
+		return errors.Join(werr, cerr)
 	}
-	return f.Close()
+	return nil
 }
 
 // Record takes a snapshot from e, sanitises it and writes it to path.

@@ -251,7 +251,7 @@ These extend the v0.1 contract without changing any existing field's meaning. Se
 4. **JSON** (extends §7):
    - new top-level `schema_version` (1);
    - `summary.volume_sizes_unknown` and `summary.complete`;
-   - `build_cache.shared_counted_in_df_bytes`;
+   - `build_cache.shared_counted_in_df_bytes`, `build_cache.df_row_excludes_shared` and `build_cache.df_row_mismatch` (a mismatch makes `summary.complete` false);
    - `projects.image_overlap_bytes`.
 5. **Suggestions** (extends §6.8): volume names are shell-quoted, with `--` before a leading dash; no command for names with control characters.
 6. **Inspect concurrency:** at most 4 concurrent `ContainerInspect` calls; output order unchanged.

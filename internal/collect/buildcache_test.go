@@ -226,3 +226,19 @@ func FuzzBuildCache(f *testing.F) {
 		}
 	})
 }
+
+func TestBuildCacheMismatchMakesSummaryIncomplete(t *testing.T) {
+	// API 1.53, df row 0, only shared records: not the legacy rule.
+	s := &engine.Snapshot{Daemon: engine.Daemon{APIVersion: "1.53"}, BuildCache: []engine.CacheRecord{rec("a", 50, true, false)}}
+	got, warns := BuildCache(s)
+	if got.DfRowExcludesShared || !got.DfRowMismatch || len(warns) == 0 {
+		t.Fatalf("want a warned mismatch, got %+v %v", got, warns)
+	}
+	if r := Build(s, t.TempDir(), time.Unix(0, 0), "test"); r.Summary.Complete {
+		t.Fatalf("a build cache mismatch makes the summary a lower bound: %+v", r.Summary)
+	}
+	legacy, _ := BuildCache(legacyCache("1.51"))
+	if !legacy.DfRowExcludesShared || legacy.DfRowMismatch {
+		t.Fatalf("legacy rule must be recognised, got %+v", legacy)
+	}
+}

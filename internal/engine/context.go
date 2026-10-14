@@ -101,7 +101,12 @@ func ResolveTarget(getenv func(string) string, home string) (Target, error) {
 		}
 		opts := []client.Opt{client.WithHost(host)}
 		tlsDir := filepath.Join(configDir, "contexts", "tls", id, "docker")
-		if _, err := os.Stat(tlsDir); err == nil {
+		_, err := os.Stat(tlsDir)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			// Unreadable TLS material must not silently become plain HTTP.
+			return Target{}, fmt.Errorf("docker %s: TLS files: %w", src, err)
+		}
+		if err == nil {
 			opts = append(opts, client.WithTLSClientConfig(
 				existing(filepath.Join(tlsDir, "ca.pem")),
 				existing(filepath.Join(tlsDir, "cert.pem")),

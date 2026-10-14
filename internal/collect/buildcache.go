@@ -49,18 +49,23 @@ func BuildCache(s *engine.Snapshot) (report.BuildCache, []string) {
 	dfTotal := s.Totals.BuildCache.TotalSize
 	private := sum - shared
 	total, sharedInDf := dfTotal, shared
+	legacy := apiBefore(s.Daemon.APIVersion, 1, 52)
+	excludesShared, mismatch := false, false
 	switch {
 	case records == 0 || dfTotal == sum:
-	case dfTotal == private && shared > 0:
-		total, sharedInDf = sum, 0
+	// A row of 0 with only shared records is the legacy rule only on an old
+	// daemon; on a current one it is a mismatch.
+	case dfTotal == private && shared > 0 && (dfTotal > 0 || legacy):
+		total, sharedInDf, excludesShared = sum, 0, true
 	case dfTotal == 0:
-		warns = append(warns, fmt.Sprintf("build cache: daemon total is 0 but records sum to %d bytes; showing the records sum", sum))
-		total, sharedInDf = sum, 0
-	case apiBefore(s.Daemon.APIVersion, 1, 52):
-		warns = append(warns, fmt.Sprintf("build cache: daemon total %d bytes matches neither the records sum %d nor the unshared sum %d; showing the records sum", dfTotal, sum, private))
-		total, sharedInDf = sum, 0
+		warns = append(warns, fmt.Sprintf("build cache: daemon total is 0 but records sum to %d bytes; showing the records sum, the summary total is a lower bound", sum))
+		total, sharedInDf, mismatch = sum, 0, true
+	case legacy:
+		warns = append(warns, fmt.Sprintf("build cache: daemon total %d bytes matches neither the records sum %d nor the unshared sum %d; showing the records sum, the summary total is a lower bound", dfTotal, sum, private))
+		total, sharedInDf, mismatch = sum, 0, true
 	default:
-		warns = append(warns, fmt.Sprintf("build cache: daemon total %d bytes differs from records sum %d bytes; showing the daemon total", dfTotal, sum))
+		warns = append(warns, fmt.Sprintf("build cache: daemon total %d bytes differs from records sum %d bytes; showing the daemon total, the summary total is a lower bound", dfTotal, sum))
+		mismatch = true
 	}
 	// Never subtract more than the df row holds.
 	sharedInDf = min(sharedInDf, max(dfTotal, 0))
@@ -74,6 +79,8 @@ func BuildCache(s *engine.Snapshot) (report.BuildCache, []string) {
 		InUseBytes:             inUse,
 		NotFreedByPrune:        notFreed,
 		SharedCountedInDfBytes: sharedInDf,
+		DfRowExcludesShared:    excludesShared,
+		DfRowMismatch:          mismatch,
 		Suggestions:            []string{},
 	}
 	if out.PrivateBytes < 0 {

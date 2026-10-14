@@ -5,14 +5,13 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
-	"unicode"
 )
 
 // safe replaces control characters in daemon-sourced strings so a crafted
 // label or name cannot inject terminal escape sequences into the report.
 func safe(s string) string {
 	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if unsafeRune(r) {
 			return '?'
 		}
 		return r
@@ -55,6 +54,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if !s.LogBytesComplete {
 		partial = append(partial, "logs incomplete")
 	}
+	if r.BuildCache.DfRowMismatch {
+		partial = append(partial, "build cache row disagrees with its records")
+	}
 	if s.VolumeSizesUnknown > 0 {
 		partial = append(partial, fmt.Sprintf("%d volume size(s) unknown", s.VolumeSizesUnknown))
 	}
@@ -62,7 +64,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if len(partial) > 0 {
 		totalNote = " (lower bound: " + strings.Join(partial, ", ") + ")"
 	}
-	if s.BuildCacheSharedBytes == 0 && r.BuildCache.SharedBytes > 0 {
+	if r.BuildCache.DfRowExcludesShared {
 		// Older daemons: df's build cache row already leaves shared records out.
 		p("  Docker resources in total   %-11s = df + logs (df's build cache row already leaves out %s shared with images)%s\n", Bytes(s.DockerBytesTotal), Bytes(r.BuildCache.SharedBytes), totalNote)
 	} else {

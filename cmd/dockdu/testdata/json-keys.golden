@@ -1,4 +1,6 @@
 .build_cache
+.build_cache.df_row_excludes_shared
+.build_cache.df_row_mismatch
 .build_cache.in_use_bytes
 .build_cache.not_freed_by_prune_bytes
 .build_cache.private_bytes

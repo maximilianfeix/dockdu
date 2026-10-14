@@ -115,3 +115,24 @@ func TestResolveTargetRefusesHugeConfig(t *testing.T) {
 		t.Fatalf("oversized config must be refused, got %v", err)
 	}
 }
+
+func TestResolveTargetUnreadableTLSDirIsAnError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can read the directory anyway")
+	}
+	home := t.TempDir()
+	cfg := filepath.Join(home, ".docker")
+	writeContext(t, cfg, "tls", "tls", "tcp://10.0.0.1:2376")
+	sum := sha256.Sum256([]byte("tls"))
+	parent := filepath.Join(cfg, "contexts", "tls", hex.EncodeToString(sum[:]))
+	if err := os.MkdirAll(filepath.Join(parent, "docker"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+	if _, err := ResolveTarget(env(nil), home); err == nil || !strings.Contains(err.Error(), "TLS files") {
+		t.Fatalf("an unreadable TLS dir must not fall back to plain HTTP, got %v", err)
+	}
+}

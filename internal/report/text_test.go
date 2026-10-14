@@ -125,6 +125,7 @@ func TestWriteTextHasNoTrailingSpaces(t *testing.T) {
 func TestWriteTextLegacyDaemonSaysNothingWasSubtracted(t *testing.T) {
 	r := goldenReport()
 	r.Summary.BuildCacheSharedBytes = 0 // df row of an API < 1.52 daemon has no shared bytes
+	r.BuildCache.DfRowExcludesShared = true
 	var buf bytes.Buffer
 	if err := WriteText(&buf, r, 10); err != nil {
 		t.Fatal(err)
@@ -162,5 +163,25 @@ func TestWriteTextNeutralisesControlCharactersInSuggestions(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "\x1b") {
 		t.Fatal("escape sequence reached the terminal output")
+	}
+}
+
+func TestSuggestVolumeRmRefusesBidiAndSeparators(t *testing.T) {
+	for _, name := range []string{"data\u202Egnp.exe", "a\u2028b", "zero\u200Bwidth"} {
+		if got := SuggestVolumeRm(name); strings.HasPrefix(got, "docker") || !strings.HasPrefix(got, "# volume") {
+			t.Errorf("%q must not become a command: %q", name, got)
+		}
+	}
+}
+
+func TestWriteTextMarksBuildCacheMismatchAsLowerBound(t *testing.T) {
+	r := goldenReport()
+	r.BuildCache.DfRowMismatch = true
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "build cache row disagrees with its records") {
+		t.Fatalf("mismatch must be named in the lower-bound note:\n%s", buf.String())
 	}
 }

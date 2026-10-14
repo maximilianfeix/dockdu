@@ -67,7 +67,8 @@ type Summary struct {
 	// (non-local drivers); df and the total leave them out.
 	VolumeSizesUnknown int `json:"volume_sizes_unknown"`
 	// Complete is false when the total is a lower bound: logs not fully
-	// measured or volume sizes unknown.
+	// measured, volume sizes unknown, or df's build cache row disagreeing
+	// with the records.
 	Complete bool `json:"complete"`
 	// NotShownByDf is the log bytes: the only part df does not report.
 	NotShownByDf int64    `json:"not_shown_by_df_bytes"`
@@ -87,8 +88,14 @@ type BuildCache struct {
 	// cache row contains. Daemons on API >= 1.52 include shared records in
 	// the row; for older daemons the client computes the row without them,
 	// so this is 0 and the summary subtracts nothing.
-	SharedCountedInDfBytes int64    `json:"shared_counted_in_df_bytes"`
-	Suggestions            []string `json:"suggestions"`
+	SharedCountedInDfBytes int64 `json:"shared_counted_in_df_bytes"`
+	// DfRowExcludesShared is true when df's row follows the pre-1.52 rule
+	// (shared records left out).
+	DfRowExcludesShared bool `json:"df_row_excludes_shared"`
+	// DfRowMismatch is true when df's row matches neither rule; the summary
+	// total is then a lower bound.
+	DfRowMismatch bool     `json:"df_row_mismatch"`
+	Suggestions   []string `json:"suggestions"`
 }
 
 // Logs lists container log files on disk.

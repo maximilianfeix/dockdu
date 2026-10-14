@@ -5,10 +5,10 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 ## [Unreleased]
 
 ### Fixed
-- Docker Engine 28 and older (API < 1.52): the shared build cache is no longer subtracted twice. Those daemons already leave shared records out of df's build cache row; dockdu now detects which rule the daemon follows (`build_cache.shared_counted_in_df_bytes`). Before, the summary was understated, private cache was wrong, and every run warned and exited 2.
+- Docker Engine 28 and older (API < 1.52): the shared build cache is no longer subtracted twice. Those daemons already leave shared records out of df's build cache row; dockdu now detects which rule the daemon follows (`build_cache.shared_counted_in_df_bytes`, `df_row_excludes_shared`); a row matching neither rule sets `df_row_mismatch` and makes the summary a lower bound. Before, the summary was understated, private cache was wrong, and every run warned and exited 2.
 - Compose projects: the header no longer implies that image layers shared between different images are de-duplicated. `projects.image_overlap_bytes` reports by how much the summed image sizes exceed df's image row.
 - Volumes whose driver reports no size now make the summary a lower bound (`summary.volume_sizes_unknown`, `summary.complete`).
-- Suggested `docker volume rm` commands shell-quote daemon-supplied names, put `--` before a leading dash, and give no command for names with control characters.
+- Suggested `docker volume rm` commands shell-quote daemon-supplied names, put `--` before a leading dash, and give no command for names with control, bidi-override or line-separator characters.
 - A host run on Docker Desktop prints one warning for the invisible data root instead of one per container.
 - The fixture recorder creates files with `O_EXCL` and never follows a planted symlink.
 

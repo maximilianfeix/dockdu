@@ -23,14 +23,21 @@ const (
 // for a POSIX shell; a name with control characters gets no command at
 // all, because no quoting makes such a line safe to paste.
 func SuggestVolumeRm(name string) string {
-	if strings.IndexFunc(name, unicode.IsControl) >= 0 {
-		return "# volume " + strconv.Quote(name) + " is unreferenced; its name contains control characters, check `docker volume ls` before removing anything"
+	if strings.IndexFunc(name, unsafeRune) >= 0 {
+		return "# volume " + strconv.QuoteToASCII(name) + " is unreferenced; its name contains control or invisible formatting characters, check `docker volume ls` before removing anything"
 	}
 	arg := ShellQuote(name)
 	if strings.HasPrefix(name, "-") {
 		arg = "-- " + arg // quoting does not stop a leading dash being read as a flag
 	}
 	return "docker volume rm " + arg + "   # only if you are sure nothing needs its data"
+}
+
+// unsafeRune reports characters that can change how a terminal shows a
+// line: control characters (Cc), invisible format characters such as bidi
+// overrides (Cf), and line or paragraph separators (Zl, Zp).
+func unsafeRune(r rune) bool {
+	return unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp)
 }
 
 // shellSafe is the set of names that need no quoting. Docker's local
