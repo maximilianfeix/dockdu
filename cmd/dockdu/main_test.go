@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -151,5 +152,85 @@ func TestEffectiveVersionFallsBackToBuildInfo(t *testing.T) {
 	t.Cleanup(func() { version = "dev" })
 	if got := effectiveVersion(); got != "1.2.3" {
 		t.Fatalf("ldflags version must win, got %q", got)
+	}
+}
+
+// jsonPaths collects every key path of a decoded JSON document, with list
+// elements written as [], and fails on any null value.
+func jsonPaths(t *testing.T, prefix string, v any, out map[string]bool) {
+	t.Helper()
+	switch x := v.(type) {
+	case nil:
+		t.Errorf("%s is null; lists must be [] and objects omitted", prefix)
+	case map[string]any:
+		for k, e := range x {
+			p := prefix + "." + k
+			out[p] = true
+			if strings.HasSuffix(k, "bytes") || strings.HasSuffix(k, "_bytes_total") {
+				if f, ok := e.(float64); !ok || f != float64(int64(f)) || f < -1 {
+					t.Errorf("%s = %v: byte values are integers >= -1", p, e)
+				}
+			}
+			jsonPaths(t, p, e, out)
+		}
+	case []any:
+		for _, e := range x {
+			jsonPaths(t, prefix+"[]", e, out)
+		}
+	}
+}
+
+// TestJSONContract guards the --json data contract: stdout is exactly one
+// JSON object, nothing goes to stderr, no value is null, byte values are
+// integers, and no key that existed in a previous release disappears.
+// testdata/json-keys.golden lists every key path; new keys may be added
+// (run with -update-keys), removing one needs a schema_version bump.
+func TestJSONContract(t *testing.T) {
+	s, err := engine.LoadFixture("../../internal/collect/testdata/desktop-29.2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	for _, c := range s.Containers {
+		mustWrite(t, filepath.Join(root, "containers", c.ID, c.ID+"-json.log"), 10)
+	}
+	var out, errOut bytes.Buffer
+	render(s, root, false, true, 10, &out, &errOut)
+	if errOut.Len() != 0 {
+		t.Fatalf("--json must keep stderr empty for a rendered report, got %q", errOut.String())
+	}
+	dec := json.NewDecoder(&out)
+	var doc map[string]any
+	if err := dec.Decode(&doc); err != nil {
+		t.Fatal(err)
+	}
+	if dec.More() {
+		t.Fatal("stdout must hold exactly one JSON document")
+	}
+	if doc["schema_version"] != float64(1) {
+		t.Fatalf("schema_version = %v, want 1", doc["schema_version"])
+	}
+	paths := map[string]bool{}
+	jsonPaths(t, "", doc, paths)
+
+	const golden = "testdata/json-keys.golden"
+	if os.Getenv("DOCKDU_UPDATE_KEYS") == "1" {
+		var keys []string
+		for k := range paths {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		if err := os.WriteFile(golden, []byte(strings.Join(keys, "\n")+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatalf("%v (create it with DOCKDU_UPDATE_KEYS=1)", err)
+	}
+	for _, k := range strings.Fields(string(want)) {
+		if !paths[k] {
+			t.Errorf("key %s disappeared from the JSON output; that breaks scripts (bump SchemaVersion if intended)", k)
+		}
 	}
 }

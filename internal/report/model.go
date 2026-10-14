@@ -6,19 +6,24 @@ package report
 
 import "time"
 
+// SchemaVersion identifies the JSON contract. It changes only when a field
+// is removed, renamed or changes meaning; adding fields keeps it.
+const SchemaVersion = 1
+
 // Report is the whole document `dockdu --json` serialises.
 type Report struct {
-	Version    string     `json:"version"`
-	TakenAt    time.Time  `json:"taken_at"`
-	Daemon     Daemon     `json:"daemon"`
-	Summary    Summary    `json:"summary"`
-	BuildCache BuildCache `json:"build_cache"`
-	Logs       Logs       `json:"logs"`
-	Projects   Projects   `json:"projects"`
-	Images     Images     `json:"images"`
-	Volumes    Volumes    `json:"volumes"`
-	Desktop    *Desktop   `json:"desktop,omitempty"`
-	Warnings   []string   `json:"warnings"`
+	SchemaVersion int        `json:"schema_version"`
+	Version       string     `json:"version"`
+	TakenAt       time.Time  `json:"taken_at"`
+	Daemon        Daemon     `json:"daemon"`
+	Summary       Summary    `json:"summary"`
+	BuildCache    BuildCache `json:"build_cache"`
+	Logs          Logs       `json:"logs"`
+	Projects      Projects   `json:"projects"`
+	Images        Images     `json:"images"`
+	Volumes       Volumes    `json:"volumes"`
+	Desktop       *Desktop   `json:"desktop,omitempty"`
+	Warnings      []string   `json:"warnings"`
 }
 
 // Daemon identifies where the numbers came from.
