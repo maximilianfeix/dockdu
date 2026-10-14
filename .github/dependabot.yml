@@ -6,3 +6,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    groups:
+      # Every github/codeql-action step must run the same version; separate
+      # PRs per step fail CodeQL with a version mismatch.
+      codeql-action:
+        patterns: ["github/codeql-action*"]
