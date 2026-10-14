@@ -14,11 +14,6 @@
 [![Telemetry](https://img.shields.io/badge/telemetry-none-36B6C5?style=flat-square&labelColor=141E27)](#trust)
 [![License](https://img.shields.io/badge/license-MIT-36B6C5?style=flat-square&labelColor=141E27)](LICENSE)
 
-<a href="#install"><img src="https://img.shields.io/badge/Install-36B6C5?style=for-the-badge&labelColor=141E27" alt="Install"></a>
-<a href="#what-it-shows"><img src="https://img.shields.io/badge/What_it_shows-141E27?style=for-the-badge" alt="What it shows"></a>
-<a href="#docker-desktop"><img src="https://img.shields.io/badge/Docker_Desktop-141E27?style=for-the-badge" alt="Docker Desktop"></a>
-<a href="#json"><img src="https://img.shields.io/badge/JSON-141E27?style=for-the-badge" alt="JSON"></a>
-
 [Install](#install) · [What it shows](#what-it-shows) · [Docker Desktop](#docker-desktop) · [JSON](#json) · [`--disk`](#disk) · [How it measures](#how-it-measures) · [Compared](#compared) · [Trust](#trust) · [Limits](#limits) · [FAQ](#faq)
 
 </div>
@@ -27,12 +22,12 @@
 
 # Where did your Docker disk space go?
 
-**dockdu shows what `docker system df` misses, without deleting anything.**
+**dockdu shows what `docker system df` misses (container log files, build cache shared with images, storage per compose project) without deleting anything.**
 
-`docker system df` says 11 GB, your disk says 138 GB. dockdu explains the part of that gap Docker can account for: container log files that df never counts, the BuildKit cache split into the part you can free and the part that belongs to your images, orphan volumes, and all of it grouped by compose project. Every line that implies an action ends with a command for you to run. dockdu itself never removes, stops or prunes anything, and its Docker client refuses any request that could (see [Trust](#trust)).
+In the demo below, `docker system df` on a disposable Docker Engine 29.9 host reports 313.6 MiB. dockdu finds **537.0 MiB of container log files that no df row contains**, and that all 140.7 MiB of build cache is shared with an image. `du` on the log files confirms the number. Every command and number is real; how it was recorded: [docs/verification/demo-2026-10-14.md](docs/verification/demo-2026-10-14.md).
 
 <div align="center">
-<img src="docs/demo.gif" alt="docker system df, then dockdu on a disposable Docker Engine 29.9 daemon after scripts/demo-up.sh: 109 MiB of logs df does not show, 140.7 MiB of build cache that prune would not free, storage per compose project and an orphan volume" width="900">
+<img src="docs/demo.gif" alt="On a disposable Docker Engine 29.9 host: docker system df reports 313.6 MiB; dockdu v0.3.0 finds 537.0 MiB of container logs that df does not show, build cache shared with images, storage per compose project and an orphan volume; du -ch on the log files confirms 535.1M" width="900">
 </div>
 
 ```bash
@@ -53,7 +48,7 @@ With Colima, OrbStack, rootless Docker or any other `docker context`, dockdu con
 
 ### Why
 
-`docker system df` is honest about what it counts, and silent about the rest. Container logs under `json-file`, the default driver, have no size limit and no rotation and are not part of any df row. The build cache row does include records that are *shared with images*, which is why `docker builder prune` frees less than the number suggests. Volumes show up as a total without saying which stack they belong to. So people run `docker system prune`, get a couple of gigabytes back, and the disk is still full ([moby #47089](https://github.com/moby/moby/issues/47089), open since 2024; [moby #52539](https://github.com/moby/moby/issues/52539), 265 GB "used for images without any images").
+`docker system df` is honest about what it counts, and silent about the rest. Container logs under `json-file`, the default driver, have no size limit and no rotation, and are not part of any df row. Build cache records can be *shared with images*. Docker Engine 29 counts them in the build cache row and Engine 28 does not. On overlay2, `docker builder prune` reports their size as reclaimed but frees almost nothing. On the containerd image store it freed about half in our measurements ([details](docs/verification/demo-2026-10-14.md#b-what-docker-builder-prune--af-actually-freed)). Volumes show up as a total without saying which stack they belong to. So people run `docker system prune`, get a couple of gigabytes back, and the disk is still full ([moby #47089](https://github.com/moby/moby/issues/47089), open since 2024; [moby #52539](https://github.com/moby/moby/issues/52539), 265 GB "used for images without any images").
 
 dockdu reads the same three API calls `docker` uses, stats the log files, does the arithmetic once, and tells you what you would get back and what you would not.
 
@@ -80,34 +75,29 @@ The binary is static, has no configuration file, and connects to nothing but the
 
 ## What it shows
 
-One run, six sections, each with its own suggestions. Real output (`--top 5`, IMAGES section left out here) from `scripts/demo-up.sh` on a disposable Docker Engine 29.9 daemon; the full run is in [docs/verification/v0.2-validation-2026-10-14.md](docs/verification/v0.2-validation-2026-10-14.md):
+One run, each section with its own suggestions. Real `dockdu --top 3` output (v0.3.0) from the demo host above; COMPOSE PROJECTS and IMAGES are left out here, the full run is in [docs/verification/demo-2026-10-14.md](docs/verification/demo-2026-10-14.md):
 
 ```text
 SUMMARY
   docker system df reports    313.6 MiB   images 140.8 MiB · containers 24.0 KiB · volumes 32.0 MiB · build cache 140.7 MiB
-  container logs on disk      109.2 MiB   not shown by df
-  Docker resources in total   282.1 MiB   = df − 140.7 MiB build cache shared with images + logs
+  container logs on disk      537.0 MiB   not shown by df
+  Docker resources in total   709.8 MiB   = df − 140.7 MiB build cache shared with images + logs (lower bound: shared build cache may keep its own copy on the containerd image store)
+  data root filesystem        2.7 GiB     used of 223.6 GiB · 209.5 GiB free (allocated blocks, a different measure)
 
 BUILD CACHE
   4 records · total 140.7 MiB · shared 140.7 MiB · private 12.0 KiB · reclaimable (as df counts it) 12.0 KiB
-  prune would NOT free 140.7 MiB (shared with images or in use)
+  prune frees an unknown part of the 140.7 MiB shared with images: on the containerd image store a shared record can keep
+  its own copy, and Docker does not report how much (on overlay2 none of it is freed). In use, never freed: 0 B
   → docker builder prune --filter until=168h   # unused build cache older than 7 days
   → docker builder prune -a                    # all build cache not in use (next build is slower)
 
-CONTAINER LOGS  (4 · total 109.2 MiB · complete)
-  CONTAINER             PROJECT      DRIVER     SIZE       FILES  ROTATION        NOTE
-  dockdu-demo-chatty    -            json-file  106.9 MiB  1      unbounded
-  dockdu-demo-bounded   -            json-file  2.3 MiB    3      bounded 1m × 3
-  dockdu-demo-web-1     dockdu-demo  json-file  0 B        1      unbounded
-  dockdu-demo-worker-1  dockdu-demo  json-file  0 B        1      unbounded
+CONTAINER LOGS  (top 3 of 4 · total 537.0 MiB · complete)
+  CONTAINER            PROJECT      DRIVER     SIZE       FILES  ROTATION        NOTE
+  dockdu-demo-chatty   -            json-file  534.7 MiB  1      unbounded
+  dockdu-demo-bounded  -            json-file  2.3 MiB    3      bounded 1m × 3
+  dockdu-demo-web-1    dockdu-demo  json-file  0 B        1      unbounded
   → set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only
   → recreate the container with --log-opt max-size=10m --log-opt max-file=3   # or --log-driver local
-
-COMPOSE PROJECTS  (total 294.7 MiB · images used by several projects counted once: 0 B)
-  image sizes include base layers shared between images: they overlap by at least 12.7 MiB, so IMAGES and TOTAL are not additive
-  PROJECT      CONTAINERS  IMAGES     SHARED IMAGES  VOLUMES   LOGS       TOTAL      NOTES
-  dockdu-demo  2           140.7 MiB  -              32.0 MiB  0 B        172.7 MiB
-  (none)       2           12.8 MiB   -              0 B       109.2 MiB  122.0 MiB  1 orphan volume(s)
 
 VOLUMES  (2 · total 32.0 MiB · size unknown for 0)
   VOLUME              PROJECT      DRIVER  SIZE      REFS  STATE
@@ -116,7 +106,7 @@ VOLUMES  (2 · total 32.0 MiB · size unknown for 0)
   → docker volume rm dockdu-demo-orphan   # only if you are sure nothing needs its data
 ```
 
-- **Build cache, honestly.** Total, shared with images, private, and the daemon's own reclaimable figure, plus the one line df does not print: how much a prune would *not* free because the bytes belong to an image.
+- **Build cache, honestly.** Total, shared with images, private and the daemon's own reclaimable figure. On overlay2 it adds the line df does not print: how much a prune would *not* free because the bytes belong to an image. On the containerd image store a prune can free part of the shared bytes, and Docker does not say how much, so dockdu says that instead of guessing.
 - **Logs per container.** Current file plus rotated siblings, the driver, whether rotation is bounded, and which compose service produced them. Measured with `stat` only; nothing is opened or read.
 - **Compose projects as the unit.** Containers, images, volumes and logs per project, orphans flagged, images used by several projects marked and counted once. Image sizes include base layers shared between different images; when that makes the columns add up to more than df's image row, dockdu says by how much.
 - **Images with "unique if removed".** Size minus shared layers, only when no container uses the image and the daemon computed both numbers. Otherwise `unknown`, never `0`.
@@ -185,7 +175,7 @@ dockdu --json | jq '.logs.items[] | select(.rotation == "unbounded") | {name, pr
 dockdu --json | jq '[.projects.items[] | select(.name != "(none)")] | sort_by(-.total_bytes)[:3] | .[] | {name, total_bytes}'
 # orphan volumes (unreferenced and not created by compose)
 dockdu --json | jq -r '.volumes.items[] | select(.orphan) | .name'
-# build cache: total, shared with images, what prune would not free
+# build cache: total, shared with images, what prune would not free (-1 = unknown, on the containerd image store)
 dockdu --json | jq '.build_cache | {total_bytes, shared_bytes, reclaimable_bytes, not_freed_by_prune_bytes}'
 # is the total complete, or a lower bound?
 dockdu --json | jq '{complete: .summary.complete, logs: .summary.log_bytes_complete, unknown_volumes: .summary.volume_sizes_unknown, warnings}'
@@ -201,7 +191,7 @@ dockdu calls three Docker Engine API endpoints, `info`, `system/df` (verbose) an
 
 1. takes the four SIZE rows of `docker system df` as the daemon reports them, never recomputed;
 2. stats the log files under the data root (`<root>/containers/<id>/<id>-json.log*` for `json-file`, `<root>/containers/<id>/local-logs/container.log*` for `local`), following no symlinks and reading no contents;
-3. subtracts the build-cache bytes that are shared with images once, because df counts them in both rows, and adds the log bytes: `total = df − shared build cache + logs`. Daemons older than API 1.52 (Docker Engine 28 and earlier) already leave shared records out of df's build cache row; dockdu detects that and subtracts nothing;
+3. subtracts the build-cache bytes that are shared with images once, because df counts them in both rows, and adds the log bytes: `total = df − shared build cache + logs`. Daemons older than API 1.52 (Docker Engine 28 and earlier) already leave shared records out of df's build cache row; dockdu detects that and subtracts nothing. On the containerd image store (`daemon.image_store` in JSON) a shared record can keep its own copy, so the result there is a lower bound;
 4. groups by the `com.docker.compose.project` label; images get their project from the containers that reference them, since pulled images carry no labels.
 
 The reclaimable figure for build cache is the daemon's. It excludes shared records, which is why it differs from `docker buildx du`. An estimate of freed space is not a guarantee: on Docker Desktop the VM file only returns space when Desktop compacts it.
@@ -215,7 +205,7 @@ Checked against each tool's current docs or source on 2026-10-14; details and so
 | | `docker system df -v` | `docker buildx du` | lazydocker | Doku | Docker Desktop | dockdu |
 |---|---|---|---|---|---|---|
 | Log size per container | no | no | no | current file only | not listed | current + rotated files, driver, rotation limit |
-| Build cache shared vs private | per-record flag | **shared and private totals** | no | per-record flag | reclaimable only | totals next to df, de-duplicated against images, "prune would NOT free" |
+| Build cache shared vs private | per-record flag | **shared and private totals** | no | per-record flag | reclaimable only | totals next to df, de-duplicated against images; on overlay2 "prune would NOT free", on the containerd store says the effect is unknown |
 | Storage per compose project | no | no | compose-aware UI, no sizes | no | no | yes |
 | Orphan volumes | LINKS = 0 | n/a | no flag | users per volume | "unused volumes" | unreferenced and not from compose, one `rm` hint each |
 | Docker Desktop VM file real size | no | no | no | no | **yes, in Settings** | yes, plus OrbStack, next to the resource total |
@@ -239,13 +229,13 @@ Checked against each tool's current docs or source on 2026-10-14; details and so
 
 ## Limits
 
-- Linux hosts and Docker Desktop on macOS. Windows and WSL are not supported (inside a WSL2 distro running Docker Engine natively the Linux binary works; not tested).
+- Linux hosts and Docker Desktop on macOS. Windows and WSL are not supported (inside a WSL2 distro running Docker Engine natively the Linux binary should work; not tested).
 - Connecting to a daemon is not seeing its files. For a remote `tcp://` daemon, or Colima and OrbStack whose data root is inside a VM, log files are reported as unmeasured, never guessed. `ssh://` contexts are not supported; set `DOCKER_HOST` instead.
 - Log sizes need read access to the data root: run as root, or as the container image with `/var/lib/docker:ro` mounted. Without it the logs section is reported as unmeasured, not as zero.
 - Only the daemon's built-in BuildKit builder is counted; named `docker buildx` builders keep their cache in their own volume, which shows up under volumes.
 - Podman is not tested.
 - Numbers are resource sizes as Docker reports them, with shared layers counted once. They are not disk-block counts and will not match `du` exactly.
-- Disk space Docker's API does not report is not attributed: overlay2 directories left behind by crashes, and with the containerd image store the compressed content kept next to unpacked snapshots. `dockdu --disk` shows how much the data root occupies on disk next to Docker's numbers; it does not say which layer belongs to what.
+- Disk space Docker's API does not report is not attributed: overlay2 directories left behind by crashes, and on the containerd image store any content the API does not attribute to an image or a cache record. `dockdu --disk` shows how much the data root occupies on disk next to Docker's numbers; it does not say which layer belongs to what.
 
 <a id="faq"></a>
 
