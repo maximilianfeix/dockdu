@@ -57,6 +57,24 @@ See `docs/SPIKE.md`, section "Spec amendments proposed in this PR" (6.1, 6.4, 6.
 - Image `alpine:3.22` (kept for the integration test).
 Remove containers and volumes by ID/name after checking the label; never prune.
 
+## State on 2026-10-14 (evening)
+
+- **Merged into `main`:**
+  - #22 v0.2-hardening;
+  - #23 codeql-action v4 for all steps (closes #18–#21);
+  - #24 issue and PR templates;
+  - #25 changelog 0.2.0.
+
+  CI, CodeQL and Scorecard were green on every PR and on `main`.
+- **Tag `v0.2.0`** (annotated, by Maxi) points to `d054f47` and is pushed. Release run 38612540882 stopped at the preflight: `tap token cannot write to maximilianfeix/homebrew-tap (HTTP 403): Resource not accessible by personal access token`. **Nothing was published:** no GitHub release, no images, no cask.
+- **Open:** #26 launch kit (docs) and #27 `--disk` (feature for v0.3.0, not part of the v0.2.0 tag).
+
+## Next executable steps
+
+1. Owner: give the token in `HOMEBREW_TAP_GITHUB_TOKEN` **Contents: Read and write** on `maximilianfeix/homebrew-tap` (fine-grained PAT, only that repository), or replace it with one that has it.
+2. Re-run the release from the tag, `gh run rerun 38612540882 --repo maximilianfeix/dockdu --failed`, then run the post-release checks in `docs/RELEASING.md` (assets, checksums, ghcr manifest, `go install @v0.2.0` prints 0.2.0, brew).
+3. Run `--disk` on a real Linux host with a large data root, then release v0.3.0.
+
 ## Test status of the v0.2 branch (release validation 2026-10-14)
 
 Full table and raw outputs: `docs/verification/v0.2-validation-2026-10-14.md`. Environment: two disposable daemons, `docker:28-dind` (Engine 28.5.2, API 1.51) and `docker:29-dind` (Engine 29.9.0, API 1.56, containerd store), removed afterwards.

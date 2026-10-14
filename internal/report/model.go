@@ -23,7 +23,10 @@ type Report struct {
 	Images        Images     `json:"images"`
 	Volumes       Volumes    `json:"volumes"`
 	Desktop       *Desktop   `json:"desktop,omitempty"`
-	Warnings      []string   `json:"warnings"`
+	// Filesystem is the filesystem holding the data root; omitted when the
+	// data root is not visible from where dockdu runs.
+	Filesystem *Filesystem `json:"filesystem,omitempty"`
+	Warnings   []string    `json:"warnings"`
 }
 
 // Daemon identifies where the numbers came from.
@@ -223,4 +226,47 @@ type Desktop struct {
 	// the allocated size. The two are different measures and may overlap.
 	DockerReportedBytes int64  `json:"docker_reported_bytes"`
 	Explanation         string `json:"explanation"`
+}
+
+// Filesystem describes the filesystem that holds the data root, from
+// statfs. These are allocated blocks, a different measure from the logical
+// sizes Docker reports; the two are shown side by side, never subtracted.
+type Filesystem struct {
+	Path           string `json:"path"`
+	SizeBytes      int64  `json:"size_bytes"`
+	UsedBytes      int64  `json:"used_bytes"`
+	AvailableBytes int64  `json:"available_bytes"`
+	// DataRoot is the measured allocation under the data root; only with
+	// --disk, which walks the tree.
+	DataRoot *DiskUsage `json:"data_root_on_disk,omitempty"`
+}
+
+// DiskUsage is a du-style walk of the data root: allocated blocks, each
+// inode counted once, symbolic links never followed, other filesystems
+// (overlay mounts of running containers, separately mounted volumes) not
+// entered.
+type DiskUsage struct {
+	AllocatedBytes int64 `json:"allocated_bytes"`
+	Entries        int64 `json:"entries"`
+	// Complete is false when a directory was unreadable or a budget (time,
+	// entry count) ran out; AllocatedBytes is then a lower bound.
+	Complete       bool `json:"complete"`
+	UnreadableDirs int  `json:"unreadable_dirs"`
+	SkippedMounts  int  `json:"skipped_mounts"`
+	// OutsideDataRootBytes is UsedBytes minus AllocatedBytes: space on the
+	// same filesystem that is not under the data root. Both are block
+	// counts of one filesystem, so the difference is meaningful; it is
+	// approximate (filesystem metadata, reserved blocks) and -1 unless the
+	// walk was complete.
+	OutsideDataRootBytes int64      `json:"outside_data_root_bytes"`
+	Items                []DiskItem `json:"items"`
+}
+
+// DiskItem is one top-level entry of the data root (overlay2, containerd,
+// containers, volumes, buildkit, ...). Files directly in the root are
+// grouped as "(files)".
+type DiskItem struct {
+	Name           string `json:"name"`
+	AllocatedBytes int64  `json:"allocated_bytes"`
+	Entries        int64  `json:"entries"`
 }

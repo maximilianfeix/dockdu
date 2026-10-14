@@ -4,7 +4,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- The filesystem holding the data root (used, size, free) when the data root is visible, and `--disk`: a `du -sx`-style walk of the data root (lstat only, hard links once, other filesystems not entered, bounded) that reports allocated bytes per top-level entry and the space outside the data root on the same filesystem. JSON: `filesystem`, `filesystem.data_root_on_disk`.
 
 ## [0.2.0] - 2026-10-14
 

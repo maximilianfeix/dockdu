@@ -66,6 +66,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	top := fs.Int("top", 10, "rows per section in text output (0 = all)")
 	dataRoot := fs.String("data-root", "", "override the Docker data root used to find log files (default: from the daemon)")
 	noDesktop := fs.Bool("no-desktop", false, "skip the Docker Desktop / OrbStack section")
+	disk := fs.Bool("disk", false, "also measure what the data root occupies on disk (walks every file with lstat; can take minutes on large hosts)")
 	usage := func(w io.Writer) {
 		fmt.Fprint(w, usageText)
 		fs.SetOutput(w)
@@ -115,14 +116,39 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "dockdu: %v\n", err)
 		return 1
 	}
-	return render(snap, *dataRoot, !*noDesktop, *asJSON, *top, stdout, stderr)
+	return render(snap, renderOpts{dataRoot: *dataRoot, desktop: !*noDesktop, disk: *disk, asJSON: *asJSON, top: *top}, stdout, stderr)
 }
+
+// renderOpts are the flags that shape a report.
+type renderOpts struct {
+	dataRoot      string
+	desktop, disk bool
+	asJSON        bool
+	top           int
+}
+
+// diskWalkTimeout bounds --disk; a walk that runs out reports a lower bound.
+const diskWalkTimeout = 10 * time.Minute
 
 // render builds and writes the report; split from run so tests can feed a
 // fixture snapshot through the same path.
-func render(snap *engine.Snapshot, dataRoot string, desktop, asJSON bool, top int, stdout, stderr io.Writer) int {
-	rep := collect.Build(snap, dataRoot, time.Now(), effectiveVersion())
-	if desktop && runtime.GOOS == "darwin" {
+func render(snap *engine.Snapshot, o renderOpts, stdout, stderr io.Writer) int {
+	rep := collect.Build(snap, o.dataRoot, time.Now(), effectiveVersion())
+	root := rep.Daemon.DataRoot
+	if root == "" {
+		root = "/var/lib/docker"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), diskWalkTimeout)
+	fsys, w := collect.Filesystem(ctx, root, o.disk, collect.DefaultDiskBudget)
+	cancel()
+	rep.Filesystem = fsys
+	rep.Warnings = append(rep.Warnings, w...)
+	if fsys != nil && fsys.DataRoot == nil && fsys.SizeBytes > 0 && fsys.UsedBytes*5 >= fsys.SizeBytes*4 {
+		// The filesystem is at least 80 % full: say how to find out whether
+		// the space is inside the data root.
+		rep.Summary.Suggestions = append(rep.Summary.Suggestions, report.SuggestDiskWalk)
+	}
+	if o.desktop && runtime.GOOS == "darwin" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			rep.Warnings = append(rep.Warnings, "desktop: home directory unknown: "+err.Error())
@@ -133,10 +159,10 @@ func render(snap *engine.Snapshot, dataRoot string, desktop, asJSON bool, top in
 		}
 	}
 	var err error
-	if asJSON {
+	if o.asJSON {
 		err = report.WriteJSON(stdout, rep)
 	} else {
-		err = report.WriteText(stdout, rep, top)
+		err = report.WriteText(stdout, rep, o.top)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "dockdu: write report: %v\n", err)

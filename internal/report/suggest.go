@@ -15,6 +15,7 @@ const (
 	SuggestImagePruneDangling = "docker image prune                         # untagged (<none>) images only"
 	SuggestImagePruneAll      = "docker image prune -a                      # removes EVERY image no container uses, including locally built ones that cannot be re-pulled"
 	SuggestLogOptsDaemon      = `set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only`
+	SuggestDiskWalk           = "dockdu --disk   # read-only: measures what the data root occupies on disk, to tell Docker's share of this filesystem from everything else (walks every file; can take minutes)"
 	SuggestLogOptsContainer   = "recreate the container with --log-opt max-size=10m --log-opt max-file=3   # or --log-driver local"
 )
 
