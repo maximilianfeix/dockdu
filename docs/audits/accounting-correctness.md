@@ -49,7 +49,7 @@ Actual reclaimable physical space is not measured, and cannot be from the API al
   - `TestBuildLegacyDaemonSummaryDoesNotSubtractSharedTwice`;
   - `TestWriteTextLegacyDaemonSaysNothingWasSubtracted`;
   - `FuzzBuildCache`, 1.4 M executions, no failure.
-- **Not verified at runtime:** no Engine 28 daemon was available. The fix rests on the two source references above.
+- **Verified at runtime on 2026-10-14** on Engine 28.5.2 (dind). df's Build Cache row was 96 B with 64 MiB shared. v0.1 printed total 149.4 MiB, private unknown, 2 false warnings and exit 2; the fix prints 213.4 MiB, private 96 B, exit 0 ([validation](../verification/v0.2-validation-2026-10-14.md)).
 
 ### A2 (P1): compose totals overstated by layers shared between different images — documented and quantified
 
@@ -97,7 +97,7 @@ Actual reclaimable physical space is not measured, and cannot be from the API al
 
 | ID | Sev | Finding | Next step |
 |---|---|---|---|
-| A4 | P1 | Containerd image store (Desktop default; Engine 29 default for new installs is **unverified**) keeps compressed content plus unpacked snapshots. df's image figure may understate disk use, and dockdu inherits that. | Record a fixture on a containerd-store Linux host. Compare `df` with `du -sx /var/lib/containerd /var/lib/docker`. Decide whether to show a "not attributed" line. |
+| A4 | P1 | Containerd image store (**verified 2026-10-14: default on a fresh Engine 29.9.0**, dind) keeps compressed content plus unpacked snapshots; the demo image shows 140.7 MiB on 29 vs 72.1 MiB on 28. df's image figure may understate disk use, and dockdu inherits that. | Record a fixture on a containerd-store Linux host. Compare `df` with `du -sx /var/lib/containerd /var/lib/docker`. Decide whether to show a "not attributed" line. |
 | A5 | P2 | Log `bytes` is `st_size` (apparent), not allocated blocks. For sparse or compressed filesystems these differ. | Add `allocated_bytes` from `st_blocks` on Linux if users report a mismatch. |
 | A6 | P3 | An image with `Size < 0` (never observed) counts as 0 in compose attribution. | Count it as unknown like volumes if it is ever observed. |
 | A7 | P2 | Overlay2 directories not referenced by any image or container (orphaned by crashes, moby #47089) are invisible to the API. | Out of scope for an API-only tool. Document `du` steps in the walkthrough instead. |
@@ -109,3 +109,11 @@ go test ./internal/collect -run 'BuildCache|Projects|Build' -v
 go test ./internal/collect -run XXX -fuzz FuzzBuildCache -fuzztime 30s
 go test ./cmd/dockdu -run JSONContract -v
 ```
+
+## 6. Found during release validation (2026-10-14)
+
+**A8 (P1): the image "reclaimable (as df counts it)" label was false on Engine 28. Fixed in edd226c.**
+
+- docker CLI 28 computes the image row's reclaimable figure itself: LayersSize − Σ unique bytes of images in use. That counts shared base layers of images that are in use as reclaimable: 8.54 MB in the demo, where the API reports 0 B.
+- dockdu keeps the API figure, which is the honest one, and labels it "reclaimable per the Docker API".
+- The build cache figure matched df on both engines, so its label stays.

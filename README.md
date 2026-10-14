@@ -32,7 +32,7 @@
 `docker system df` says 11 GB, your disk says 138 GB. dockdu explains the part of that gap Docker can account for: container log files that df never counts, the BuildKit cache split into the part you can free and the part that belongs to your images, orphan volumes, and all of it grouped by compose project. Every line that implies an action ends with a command for you to run. dockdu itself never removes, stops or prunes anything, and its Docker client refuses any request that could (see [Trust](#trust)).
 
 <div align="center">
-<img src="docs/demo.gif" alt="dockdu run inside a container on Docker Desktop: summary with the gap to df, 7 MiB of unrotated logs in one compose service, build cache that prune would not free, and an orphan volume" width="900">
+<img src="docs/demo.gif" alt="docker system df, then dockdu on a disposable Docker Engine 29.9 daemon after scripts/demo-up.sh: 109 MiB of logs df does not show, 140.7 MiB of build cache that prune would not free, storage per compose project and an orphan volume" width="900">
 </div>
 
 ```bash
@@ -80,33 +80,40 @@ The binary is static, has no configuration file, and connects to nothing but the
 
 ## What it shows
 
-One run, six sections, each with its own suggestions:
+One run, six sections, each with its own suggestions. Real output (`--top 5`, IMAGES section left out here) from `scripts/demo-up.sh` on a disposable Docker Engine 29.9 daemon; the full run is in [docs/verification/v0.2-validation-2026-10-14.md](docs/verification/v0.2-validation-2026-10-14.md):
 
 ```text
 SUMMARY
-  docker system df reports    6.5 GiB     images 4.9 GiB · containers 96.0 KiB · volumes 157.0 MiB · build cache 1.4 GiB
-  container logs on disk      7.7 MiB     not shown by df
-  Docker resources in total   6.1 GiB     = df − 407.5 MiB build cache shared with images + logs
+  docker system df reports    313.6 MiB   images 140.8 MiB · containers 24.0 KiB · volumes 32.0 MiB · build cache 140.7 MiB
+  container logs on disk      109.2 MiB   not shown by df
+  Docker resources in total   282.1 MiB   = df − 140.7 MiB build cache shared with images + logs
 
 BUILD CACHE
-  26 records · total 1.4 GiB · shared 407.5 MiB · private 1.0 GiB · reclaimable (as df counts it) 1.0 GiB
-  prune would NOT free 407.5 MiB (shared with images or in use)
+  4 records · total 140.7 MiB · shared 140.7 MiB · private 12.0 KiB · reclaimable (as df counts it) 12.0 KiB
+  prune would NOT free 140.7 MiB (shared with images or in use)
   → docker builder prune --filter until=168h   # unused build cache older than 7 days
+  → docker builder prune -a                    # all build cache not in use (next build is slower)
 
-CONTAINER LOGS  (top 6 of 8 · total 7.7 MiB · complete)
-  CONTAINER             PROJECT      DRIVER     SIZE       FILES  ROTATION
-  dockdu-demo-web-1     dockdu-demo  json-file  7.2 MiB    1      unbounded
-  dockdu-demo-worker-1  dockdu-demo  json-file  478.4 KiB  3      bounded 200k × 3
-  → set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}
+CONTAINER LOGS  (4 · total 109.2 MiB · complete)
+  CONTAINER             PROJECT      DRIVER     SIZE       FILES  ROTATION        NOTE
+  dockdu-demo-chatty    -            json-file  106.9 MiB  1      unbounded
+  dockdu-demo-bounded   -            json-file  2.3 MiB    3      bounded 1m × 3
+  dockdu-demo-web-1     dockdu-demo  json-file  0 B        1      unbounded
+  dockdu-demo-worker-1  dockdu-demo  json-file  0 B        1      unbounded
+  → set "log-opts" in /etc/docker/daemon.json: {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only
+  → recreate the container with --log-opt max-size=10m --log-opt max-file=3   # or --log-driver local
 
-COMPOSE PROJECTS  (total 4.5 GiB · images used by several projects counted once: 12.8 MiB)
-  PROJECT      CONTAINERS  IMAGES   SHARED IMAGES  VOLUMES   LOGS     TOTAL      NOTES
-  dockdu-demo  3           0 B      +12.8 MiB (1)  96.0 MiB  7.6 MiB  103.6 MiB
-  (none)       5           4.3 GiB  +12.8 MiB (1)  61.0 MiB  7.7 KiB  4.4 GiB    1 orphan volume(s)
+COMPOSE PROJECTS  (total 294.7 MiB · images used by several projects counted once: 0 B)
+  image sizes include base layers shared between images: they overlap by at least 12.7 MiB, so IMAGES and TOTAL are not additive
+  PROJECT      CONTAINERS  IMAGES     SHARED IMAGES  VOLUMES   LOGS       TOTAL      NOTES
+  dockdu-demo  2           140.7 MiB  -              32.0 MiB  0 B        172.7 MiB
+  (none)       2           12.8 MiB   -              0 B       109.2 MiB  122.0 MiB  1 orphan volume(s)
 
-VOLUMES  (3 · total 157.0 MiB · size unknown for 0)
-  dockdu-orphan-demo   -   local   24.0 MiB   0   orphan (unreferenced, not from compose)
-  → docker volume rm dockdu-orphan-demo   # only if you are sure nothing needs its data
+VOLUMES  (2 · total 32.0 MiB · size unknown for 0)
+  VOLUME              PROJECT      DRIVER  SIZE      REFS  STATE
+  dockdu-demo_data    dockdu-demo  local   32.0 MiB  2     referenced
+  dockdu-demo-orphan  -            local   0 B       0     orphan (unreferenced, not from compose)
+  → docker volume rm dockdu-demo-orphan   # only if you are sure nothing needs its data
 ```
 
 - **Build cache, honestly.** Total, shared with images, private, and the daemon's own reclaimable figure, plus the one line df does not print: how much a prune would *not* free because the bytes belong to an image.

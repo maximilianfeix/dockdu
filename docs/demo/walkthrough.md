@@ -2,7 +2,7 @@
 
 This walkthrough reproduces the three situations dockdu was built for on a test daemon. It uses `scripts/demo-up.sh`, which creates only objects named `dockdu-demo*` and labelled `dockdu.demo=1`, and `scripts/demo-down.sh`, which removes them by name after checking the label. No prune command is involved.
 
-> Status 2026-10-14: the scripts are written and syntax-checked but have **not been run**. The "What to expect" notes come from the code and the Docker docs, not from a recorded run. Record real output before using any number from this page publicly.
+> Status 2026-10-14: run on two disposable daemons (`docker:28-dind`, Engine 28.5.2; `docker:29-dind`, Engine 29.9.0) with `LOG_MB=100`. The expectations below held on both; raw output is in [../verification/v0.2-validation-2026-10-14.md](../verification/v0.2-validation-2026-10-14.md). `demo-down.sh` removed only the labelled objects and kept unlabelled decoys, including one with a demo name.
 
 Requirements: Docker with BuildKit (`docker buildx`), Compose v2, about 400 MB free.
 
@@ -58,4 +58,18 @@ What to expect in COMPOSE PROJECTS:
 
 ## Results
 
-_Not recorded yet. Paste the real `docker system df` and dockdu output here after a run, with the engine version and the date, and regenerate `docs/demo.gif` with `vhs demo.tape`._
+Recorded 2026-10-14, `LOG_MB=100`.
+
+| | Engine 28.5.2 (overlay2) | Engine 29.9.0 (containerd store) |
+|---|---|---|
+| `docker system df` Build Cache row | 96 B (shared records left out) | 147.6 MB (shared records included) |
+| `docker buildx du` Reclaimable | 67.11 MB (counts shared records) | 147.6 MB (counts shared records) |
+| dockdu build cache: shared / private / reclaimable | 64.0 MiB / 96 B / 96 B | 140.7 MiB / 12.0 KiB / 12.0 KiB |
+| dockdu summary formula | df + logs | df − 140.7 MiB shared + logs |
+| Logs not shown by df | 109.2 MiB (chatty 106.9 MiB unbounded; bounded 2.3 MiB in 3 files at 1m × 3) | same |
+| Compose `dockdu-demo` | 2 containers, image 72.1 MiB, volume 32.0 MiB | 2 containers, image 140.7 MiB, volume 32.0 MiB |
+| Image layer overlap reported | 8.1 MiB (alpine base) | 12.7 MiB (alpine base) |
+
+On Engine 29 with the containerd store the demo image is 140.7 MiB for a 64 MiB layer of random data plus alpine: the store keeps the compressed content next to the unpacked snapshot. The Engine 28 figure for the same image is 72.1 MiB.
+
+The README GIF (`docs/demo.gif`) was recorded from the Engine 29 run with `vhs docs/demo/dind.tape`.

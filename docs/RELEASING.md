@@ -29,3 +29,19 @@ git tag -a vX.Y.Z -m "dockdu vX.Y.Z" && git push origin vX.Y.Z
 - Run `docker pull ghcr.io/maximilianfeix/dockdu:vX.Y.Z`.
 - Run `brew upgrade dockdu` (or `brew install maximilianfeix/tap/dockdu`), then `dockdu --version`.
 - Record the verification in `docs/verification/release-<date>.md` and the state in PROGRESS.md.
+
+## v0.2.0 status (2026-10-14, branch `v0.2-hardening`)
+
+Detailed results: [verification/v0.2-validation-2026-10-14.md](verification/v0.2-validation-2026-10-14.md).
+
+| Step | Status |
+|---|---|
+| 1. CI green on `main` | NOT RUN: the branch is not pushed |
+| 2. gofmt, vet, `go test -race` | PASS |
+| 3. Fuzz smoke test | PASS |
+| 4. JSON contract (only additions; `schema_version` 1) | PASS |
+| 5. GoReleaser snapshot | PASS without images (`--skip=docker`); the image build was NOT RUN, but the Dockerfile was built and run in dind (PASS) |
+| 6. Smoke test: Linux as root, container one-liner | PASS on Engine 28.5.2 and 29.9.0 (dind); the darwin snapshot binary runs on the host |
+| 7. Tap token | BLOCKED: owner action |
+| 8. CHANGELOG | PASS ([Unreleased] filled in; move it to 0.2.0 on tagging) |
+| 9. README numbers and GIF | PASS (re-recorded from Engine 29.9 dind) |

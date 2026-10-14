@@ -11,6 +11,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Suggested `docker volume rm` commands shell-quote daemon-supplied names, put `--` before a leading dash, and give no command for names with control, bidi-override or line-separator characters.
 - A host run on Docker Desktop prints one warning for the invisible data root instead of one per container.
 - The fixture recorder creates files with `O_EXCL` and never follows a planted symlink.
+- The IMAGES header says "reclaimable per the Docker API" instead of "as df counts it": docker CLI 28 prints its own, different image figure.
+- `go install github.com/maximilianfeix/dockdu/cmd/dockdu@vX.Y.Z` builds report their module version instead of `dev` (already on `main` after 0.1.0).
 
 ### Added
 - The Docker client refuses any request that is not GET/HEAD to `/_ping`, `/info`, `/system/df` or `/containers/<id>/json`, before it is sent. Regression tests run against an instrumented fake Engine API.
@@ -18,6 +20,9 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - `schema_version` in `--json` output, with a contract test that fails if a key disappears.
 - Container inspects run on four workers (200 containers at 2 ms each: 570 ms → 147 ms on the fake engine).
 - `scripts/demo-up.sh` / `scripts/demo-down.sh`: reproducible demo scenarios, removed by name after a label check, never pruned.
+
+### Verified
+- On disposable Docker Engine 28.5.2 and 29.9.0 daemons: integration test, demo scenarios, the Engine 28 build cache fix, the request set against real daemons (only `/_ping`, `/info`, `/system/df`, `/containers/<id>/json`), and the container image one-liner. Details: `docs/verification/v0.2-validation-2026-10-14.md`.
 
 ## [0.1.0] - 2026-10-13
 
