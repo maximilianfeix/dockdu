@@ -28,6 +28,59 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			p("  → %s\n", safe(s)) // defence in depth: names inside are daemon data
 		}
 	}
+	// para writes prose that fits as is, or word-wrapped at textWidth with
+	// first before the first line and cont before the others.
+	para := func(first, cont, text string) {
+		if runeLen(first)+runeLen(text) <= textWidth {
+			p("%s%s\n", first, text)
+			return
+		}
+		for i, l := range wrapTokens(strings.Fields(text), " ", textWidth-runeLen(first), textWidth-runeLen(cont)) {
+			if i == 0 {
+				p("%s%s\n", first, l)
+			} else {
+				p("%s%s\n", cont, l)
+			}
+		}
+	}
+	// list writes " · "-separated items, breaking only between items.
+	list := func(first, cont string, items ...string) {
+		for i, l := range wrapTokens(items, " · ", textWidth-runeLen(first), textWidth-runeLen(cont)) {
+			if i == 0 {
+				p("%s%s\n", first, l)
+			} else {
+				p("%s%s\n", cont, l)
+			}
+		}
+	}
+	// row writes a summary line: label, value, then the note on the same
+	// line when it fits and on indented lines below when it does not.
+	row := func(label, value string, note ...string) {
+		head := fmt.Sprintf("  %-28s%-11s", label, value)
+		joined := strings.Join(note, " · ")
+		if joined == "" {
+			p("%s\n", strings.TrimRight(head, " "))
+			return
+		}
+		if runeLen(head)+1+runeLen(joined) <= textWidth {
+			p("%s %s\n", head, joined)
+			return
+		}
+		p("%s\n", strings.TrimRight(head, " "))
+		list("    ", "    ", note...)
+	}
+	// header writes "\nTITLE  (a · b · c)", or the title alone with the
+	// details on the next line when the whole does not fit.
+	header := func(title string, info ...string) {
+		p("\n")
+		joined := strings.Join(info, " · ")
+		if runeLen(title)+4+runeLen(joined) <= textWidth {
+			p("%s  (%s)\n", title, joined)
+			return
+		}
+		p("%s\n", title)
+		list("  ", "  ", info...)
+	}
 	limit := func(n int) (int, string) {
 		if top <= 0 || n <= top {
 			return n, fmt.Sprintf("%d", n)
@@ -39,17 +92,19 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if r.Daemon.ReportedDataRoot != "" {
 		root += " (daemon reports " + safe(r.Daemon.ReportedDataRoot) + ")"
 	}
-	p("dockdu %s · docker %s (API %s) · %s · data root %s\n\n", r.Version, safe(r.Daemon.ServerVersion), safe(r.Daemon.APIVersion), safe(r.Daemon.OperatingSystem), root)
+	list("", "  ", "dockdu "+r.Version, "docker "+safe(r.Daemon.ServerVersion)+" (API "+safe(r.Daemon.APIVersion)+")",
+		safe(r.Daemon.OperatingSystem), "data root "+root)
+	p("\n")
 
 	s := r.Summary
 	p("SUMMARY\n")
-	p("  docker system df reports    %-11s images %s · containers %s · volumes %s · build cache %s\n",
-		Bytes(s.DfReportedBytes), Bytes(s.DfImages), Bytes(s.DfContainers), Bytes(s.DfVolumes), Bytes(s.DfBuildCache))
-	logNote := "not shown by df"
+	row("docker system df reports", Bytes(s.DfReportedBytes), "images "+Bytes(s.DfImages), "containers "+Bytes(s.DfContainers),
+		"volumes "+Bytes(s.DfVolumes), "build cache "+Bytes(s.DfBuildCache))
+	logNote := []string{"not shown by df"}
 	if !s.LogBytesComplete {
-		logNote += " · incomplete, lower bound (see CONTAINER LOGS)"
+		logNote = append(logNote, "incomplete, lower bound (see CONTAINER LOGS)")
 	}
-	p("  container logs on disk      %-11s %s\n", Bytes(s.LogBytes), logNote)
+	row("container logs on disk", Bytes(s.LogBytes), logNote...)
 	var partial []string
 	if !s.LogBytesComplete {
 		partial = append(partial, "logs incomplete")
@@ -58,23 +113,24 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		partial = append(partial, "build cache row disagrees with its records")
 	}
 	if r.BuildCache.SharedMayBeFreedByPrune && s.BuildCacheSharedBytes > 0 {
-		partial = append(partial, "shared build cache may keep its own copy on the containerd image store")
+		partial = append(partial, "shared build cache may keep its own copy (containerd image store)")
 	}
 	if s.VolumeSizesUnknown > 0 {
 		partial = append(partial, fmt.Sprintf("%d volume size(s) unknown", s.VolumeSizesUnknown))
 	}
-	totalNote := ""
-	if len(partial) > 0 {
-		totalNote = " (lower bound: " + strings.Join(partial, ", ") + ")"
-	}
 	if r.BuildCache.DfRowExcludesShared {
 		// Older daemons: df's build cache row already leaves shared records out.
-		p("  Docker resources in total   %-11s = df + logs (df's build cache row already leaves out %s shared with images)%s\n", Bytes(s.DockerBytesTotal), Bytes(r.BuildCache.SharedBytes), totalNote)
+		row("Docker resources in total", Bytes(s.DockerBytesTotal), "= df + logs")
+		para("    ", "    ", fmt.Sprintf("(df's build cache row already leaves out %s shared with images)", Bytes(r.BuildCache.SharedBytes)))
 	} else {
-		p("  Docker resources in total   %-11s = df − %s build cache shared with images + logs%s\n", Bytes(s.DockerBytesTotal), Bytes(s.BuildCacheSharedBytes), totalNote)
+		row("Docker resources in total", Bytes(s.DockerBytesTotal), fmt.Sprintf("= df − %s shared build cache + logs", Bytes(s.BuildCacheSharedBytes)))
+	}
+	if len(partial) > 0 {
+		para("    ", "    ", "lower bound: "+strings.Join(partial, "; "))
 	}
 	if f := r.Filesystem; f != nil {
-		p("  data root filesystem        %-11s used of %s · %s free (allocated blocks, a different measure)\n", Bytes(f.UsedBytes), Bytes(f.SizeBytes), Bytes(f.AvailableBytes))
+		row("data root filesystem", Bytes(f.UsedBytes), "used of "+Bytes(f.SizeBytes), Bytes(f.AvailableBytes)+" free")
+		p("    allocated blocks, a different measure from Docker's sizes\n")
 	}
 	sug(s.Suggestions)
 
@@ -85,7 +141,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			status = "incomplete, lower bound (see WARNINGS)"
 		}
 		n, label := limit(len(du.Items))
-		p("\nDATA ROOT ON DISK  (%s · allocated blocks · %d entries · %s)\n", safe(f.Path), du.Entries, status)
+		header("DATA ROOT ON DISK", safe(f.Path), "allocated blocks", fmt.Sprintf("%d entries", du.Entries), status)
 		if n > 0 {
 			tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(tw, "  ENTRY (%s)\tON DISK\tENTRIES\n", label)
@@ -96,26 +152,24 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		}
 		p("  data root on disk           %s\n", Bytes(du.AllocatedBytes))
 		if du.OutsideDataRootBytes >= 0 {
-			p("  outside the data root       %-11s on the same filesystem, not under %s (approximate: includes filesystem metadata)\n", Bytes(du.OutsideDataRootBytes), safe(f.Path))
+			row("outside the data root", Bytes(du.OutsideDataRootBytes), "on the same filesystem, not under "+safe(f.Path), "approximate: includes filesystem metadata")
 		} else {
 			p("  outside the data root       unknown (the walk was incomplete)\n")
 		}
 		if du.SkippedMounts > 0 {
-			p("  %d mount(s) inside the data root not entered (overlay mounts of running containers, separately mounted volumes)\n", du.SkippedMounts)
+			para("  ", "  ", fmt.Sprintf("%d mount(s) inside the data root not entered (overlay mounts of running containers, separately mounted volumes)", du.SkippedMounts))
 		}
-		p("  Docker's sizes above are logical sizes; these are blocks on disk. Compare the two side by side: if overlay2 or\n")
-		p("  containerd is far larger than images + containers + build cache, the data root holds layers or content Docker does not list.\n")
+		para("  ", "  ", "Docker's sizes above are logical sizes; these are blocks on disk. Compare the two side by side: if overlay2 or containerd is far larger than images + containers + build cache, the data root holds layers or content Docker does not list.")
 	}
 
 	bc := r.BuildCache
 	p("\nBUILD CACHE\n")
-	p("  %d records · total %s · shared %s · private %s · reclaimable (as df counts it) %s\n",
-		bc.Records, Bytes(bc.TotalBytes), Bytes(bc.SharedBytes), Bytes(bc.PrivateBytes), Bytes(bc.ReclaimableBytes))
+	list("  ", "  ", fmt.Sprintf("%d records", bc.Records), "total "+Bytes(bc.TotalBytes), "shared "+Bytes(bc.SharedBytes),
+		"private "+Bytes(bc.PrivateBytes), "reclaimable (as df counts it) "+Bytes(bc.ReclaimableBytes))
 	if bc.SharedMayBeFreedByPrune {
-		p("  prune frees an unknown part of the %s shared with images: on the containerd image store a shared record can keep\n", Bytes(bc.SharedBytes))
-		p("  its own copy, and Docker does not report how much (on overlay2 none of it is freed). In use, never freed: %s\n", Bytes(bc.InUseBytes))
+		para("  ", "  ", fmt.Sprintf("prune frees an unknown part of the %s shared with images: on the containerd image store a shared record can keep its own copy, and Docker does not report how much (on overlay2 none of it is freed). In use, never freed: %s", Bytes(bc.SharedBytes), Bytes(bc.InUseBytes)))
 	} else {
-		p("  prune would NOT free %s (shared with images or in use)\n", Bytes(bc.NotFreedByPrune))
+		para("  ", "  ", fmt.Sprintf("prune would NOT free %s (shared with images or in use)", Bytes(bc.NotFreedByPrune)))
 	}
 	sug(bc.Suggestions)
 
@@ -125,7 +179,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if !lg.Complete {
 		status = "incomplete"
 	}
-	p("\nCONTAINER LOGS  (%s · total %s · %s)\n", label, Bytes(lg.TotalBytes), status)
+	header("CONTAINER LOGS", label, "total "+Bytes(lg.TotalBytes), status)
 	if n > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  CONTAINER\tPROJECT\tDRIVER\tSIZE\tFILES\tROTATION\tNOTE")
@@ -155,9 +209,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	sug(lg.Suggestions)
 
 	pr := r.Projects
-	p("\nCOMPOSE PROJECTS  (total %s · images used by several projects counted once: %s)\n", Bytes(pr.TotalBytes), Bytes(pr.SharedImageBytes))
+	header("COMPOSE PROJECTS", "total "+Bytes(pr.TotalBytes), "images used by several projects counted once: "+Bytes(pr.SharedImageBytes))
 	if pr.ImageOverlapBytes > 0 {
-		p("  image sizes include base layers shared between images: they overlap by at least %s, so IMAGES and TOTAL are not additive\n", Bytes(pr.ImageOverlapBytes))
+		para("  ", "  ", fmt.Sprintf("image sizes include base layers shared between images: they overlap by at least %s, so IMAGES and TOTAL are not additive", Bytes(pr.ImageOverlapBytes)))
 	}
 	if len(pr.Items) > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
@@ -193,7 +247,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 
 	im := r.Images
 	n, label = limit(len(im.Items))
-	p("\nIMAGES  (%s · total %s · dangling %d · reclaimable per the Docker API %s)\n", label, Bytes(im.TotalBytes), im.Dangling, Bytes(im.ReclaimableBytes))
+	header("IMAGES", label, "total "+Bytes(im.TotalBytes), fmt.Sprintf("dangling %d", im.Dangling), "reclaimable per the Docker API "+Bytes(im.ReclaimableBytes))
 	if n > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  IMAGE\tSIZE\tSHARED\tUNIQUE IF REMOVED\tCONTAINERS\tPROJECTS")
@@ -219,7 +273,7 @@ func WriteText(w io.Writer, r *Report, top int) error {
 
 	vo := r.Volumes
 	n, label = limit(len(vo.Items))
-	p("\nVOLUMES  (%s · total %s · size unknown for %d)\n", label, Bytes(vo.TotalBytes), vo.UnknownSizes)
+	header("VOLUMES", label, "total "+Bytes(vo.TotalBytes), fmt.Sprintf("size unknown for %d", vo.UnknownSizes))
 	if n > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tw, "  VOLUME\tPROJECT\tDRIVER\tSIZE\tREFS\tSTATE")
@@ -241,15 +295,15 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if d := r.Desktop; d != nil {
 		p("\n%s\n", strings.ToUpper(d.Product))
 		p("  %s\n", d.DiskFile)
-		p("  apparent size %s (the configured maximum) · allocated on disk %s\n", Bytes(d.ApparentBytes), Bytes(d.AllocatedBytes))
-		p("  Docker reports %s of resources; a different measure that may overlap, not a disk-block count\n", Bytes(d.DockerReportedBytes))
-		p("  %s\n", d.Explanation)
+		list("  ", "  ", "apparent size "+Bytes(d.ApparentBytes)+" (the configured maximum)", "allocated on disk "+Bytes(d.AllocatedBytes))
+		para("  ", "  ", fmt.Sprintf("Docker reports %s of resources; a different measure that may overlap, not a disk-block count", Bytes(d.DockerReportedBytes)))
+		para("  ", "  ", d.Explanation)
 	}
 
 	if len(r.Warnings) > 0 {
 		p("\nWARNINGS\n")
 		for _, wn := range r.Warnings {
-			p("  - %s\n", safe(wn))
+			para("  - ", "    ", safe(wn))
 		}
 	}
 	p("\ndockdu never deletes anything. Every → line is a suggestion for you to run.\n")
