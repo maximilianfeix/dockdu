@@ -71,6 +71,13 @@ Remove containers and volumes by ID/name after checking the label; never prune.
   Full log: `docs/growth/overnight-log.md`.
 - **Scorecard:** token permissions and x/sys fixed (#32). BranchProtection should clear with the ruleset. CodeReview, Maintained and CII badge remain; they depend on the process and the project's age.
 
+## State on 2026-10-15 (morning)
+
+- **v0.4.0 released and verified:** buildx docker-container builders (state volumes), `--disk` overlay2 by owner with a leftover finding (≥ 64 MiB and ≥ 10 %), classic store hidden by the containerd image store (also without `--disk`). Evidence: `docs/verification/buildx-overlay2-2026-10-15.md` (A–D).
+- **Corrected:** README claimed containerd's compressed content is outside df; measured that df's Images row includes it (#44).
+- **Unreleased on main:** anonymous volume marking (#45).
+- **Published:** second dev.to article and one X post (links in `docs/growth/overnight-log.md`).
+
 ## Next executable steps
 
 1. Watch awesome-docker#1578 and cli-apps#509 and answer reviewers the same day.
@@ -106,6 +113,13 @@ Full table and raw outputs: `docs/verification/v0.2-validation-2026-10-14.md`. E
 | CI on the branch | NOT RUN (not pushed) |
 
 Found and fixed during validation: the IMAGES "reclaimable (as df counts it)" label was false on Engine 28 (edd226c).
+
+## State on 2026-10-15 (morning)
+
+- **v0.4.0 released and verified:** buildx docker-container builders (state volumes), `--disk` overlay2 by owner with a leftover finding (≥ 64 MiB and ≥ 10 %), classic store hidden by the containerd image store (also without `--disk`). Evidence: `docs/verification/buildx-overlay2-2026-10-15.md` (A–D).
+- **Corrected:** README claimed containerd's compressed content is outside df; measured that df's Images row includes it (#44).
+- **Unreleased on main:** anonymous volume marking (#45).
+- **Published:** second dev.to article and one X post (links in `docs/growth/overnight-log.md`).
 
 ## Next executable steps (in order)
 

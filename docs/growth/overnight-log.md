@@ -29,6 +29,10 @@ Times are CEST.
 | ~22:08 | GitHub release | v0.3.3 (rootless hint, S3), curated notes, verified incl. on the rootless daemon | https://github.com/maximilianfeix/dockdu/releases/tag/v0.3.3 | published | — |
 | 22:13 | X (@44errrr) | One post: df 313.6 MiB vs 536.9 MiB of logs; prune printed 147.6MB and freed 72.7 MiB; links to the dev.to article and the repo | https://x.com/44errrr/status/2110463912328011969 | published | answer genuine replies; no repeat post |
 | 21:07 | X (@44errrr) | Two replies with the dockdu tagline under unrelated "founders" posts | — | **not from this session** (a parallel session); promotional replies in unrelated threads risk spam flags; stop them | maintainer decides |
+| ~05:10 (10-15) | GitHub release | v0.4.0: buildx builder cache, overlay2 by owner, classic store hidden by the containerd store (#42, #43); verified (4/4 checksums, ghcr v0.4.0 amd64+arm64, cask, go install, brew) | https://github.com/maximilianfeix/dockdu/releases/tag/v0.4.0 | published, curated notes | — |
+| ~05:30 (10-15) | dev.to | Second article "docker builder prune freed 0 B: two places Docker keeps disk space that no prune reaches", AI disclosure "Fully Autonomous" plus in-text disclosure | https://dev.to/taventix/docker-builder-prune-freed-0-b-two-places-docker-keeps-disk-space-that-no-prune-reaches-3lpb | published | watch comments |
+| 07:34 (10-15) | X (@44errrr) | One post with the two new measurements and the article link (the earlier post had 65 views, 1 like, no replies) | https://x.com/44errrr/status/2110605324419805596 | published | answer genuine replies; no repeats |
+| ~05:30 (10-15) | GitHub | Topics added: buildx, overlay2, containerd, docker-cleanup (19 of 20) | repo page | published | — |
 | — | Console.dev, newsletters | Email pitches | launch-kit/submissions.md | **drafted**: email is excluded by the maintainer's rules | maintainer sends |
 
 ## Measurements
@@ -37,5 +41,7 @@ Times are CEST.
 |---|---|---|---|---|---|
 | 2026-10-14 21:51 | 0 | 0 | 7 (1) | github.com 3 | 7 / 4 / 6 / 6 / 5 |
 | 2026-10-14 22:15 | see final check | | | | v0.3.3 added; downloads still dominated by the agent's own verification |
+
+| 2026-10-15 07:40 | 1 | 0 | — | — | v0.4.0 added; external PRs #1578 and #509 still without review |
 
 **Download caveat:** nearly all downloads so far are the agent's own post-release verifications (it fetches every archive once per release, plus one linux binary for the demo). They are not adoption.
