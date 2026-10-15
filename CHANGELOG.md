@@ -4,6 +4,10 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.0] - 2026-10-15
+
 ### Added
 - buildx builders with the docker-container driver: their state volumes (`buildx_buildkit_<node>_state`) are listed under BUILD CACHE (`build_cache.buildx_builders`) and marked in the volume list (`volumes.items[].buildx_node`), with a `docker buildx prune --builder=<name>` hint per builder. On Engine 29.9 that builder held 70 MiB that df's build cache row showed as 0 B; `docker builder prune -af` freed none of it.
 - `--disk` attributes `overlay2/` from the graph driver's layer records: image layers, container layers, and directories without any record. Unrecorded space beyond what private build cache can explain is reported as likely leftovers (≥ 64 MiB and ≥ 10 % of overlay2), with the largest directories listed.
@@ -72,7 +76,7 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.4.0...HEAD [0.4.0]: https://github.com/maximilianfeix/dockdu/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/maximilianfeix/dockdu/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/maximilianfeix/dockdu/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/maximilianfeix/dockdu/compare/v0.3.0...v0.3.1
