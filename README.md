@@ -115,6 +115,7 @@ VOLUMES  (2 · total 32.0 MiB · size unknown for 0)
 ```
 
 - **Build cache, honestly.** Total, shared with images, private and the daemon's own reclaimable figure. On overlay2 it adds the line df does not print: how much a prune would *not* free because the bytes belong to an image. On the containerd image store a prune can free part of the shared bytes, and Docker does not say how much, so dockdu says that instead of guessing.
+- **buildx builders too.** A builder created with `docker buildx create --driver docker-container` keeps its whole cache in a volume named `buildx_buildkit_<node>_state`. df's build cache row does not include it, and on that host `docker builder prune -af` freed 0 B of it while `docker buildx prune --builder=<name>` freed 71 MiB ([measured](docs/verification/buildx-overlay2-2026-10-15.md)). dockdu lists each such builder under BUILD CACHE, marks its volume, and prints the prune command for that builder.
 - **Logs per container.** Current file plus rotated siblings, the driver, whether rotation is bounded, and which compose service produced them. Measured with `stat` only; nothing is opened or read.
 - **Compose projects as the unit.** Containers, images, volumes and logs per project, orphans flagged, images used by several projects marked and counted once. Image sizes include base layers shared between different images; when that makes the columns add up to more than df's image row, dockdu says by how much.
 - **Images with "unique if removed".** Size minus shared layers, only when no container uses the image and the daemon computed both numbers. Otherwise `unknown`, never `0`.
@@ -143,7 +144,7 @@ The log files are inside that VM, so the host binary reports them as unmeasured.
 > Since v0.3.0.
 
 Docker's numbers are logical sizes from its API. Your disk fills up in allocated blocks, and part of it may not be Docker's at all. Whenever the data root is visible (Linux as root, or the container image), dockdu prints the filesystem that holds it. When that filesystem is at least 80% full, it suggests `dockdu --disk`, which walks the data root the way `du -sx` does:
-- `lstat` only: no symlink is followed and no file is opened;
+- `lstat` only: no symlink is followed and no file is opened, except the layer ID files under `image/overlay2/layerdb` (one short ID each, read through an `os.Root` so a link cannot leave the data root);
 - each hard-linked inode is counted once;
 - other filesystems, such as running containers' overlay mounts, are not entered.
 
@@ -167,6 +168,18 @@ DATA ROOT ON DISK  (/var/lib/docker · allocated blocks · 806 entries · comple
 What the result tells you:
 - **`outside the data root` is large:** the full disk is mostly not Docker's.
 - **`overlay2` or `containerd` is far larger than images + containers + build cache:** the data root holds layers or content the API does not list. Leftovers from crashes, and on the containerd image store the compressed content kept next to the unpacked snapshots.
+
+> Since v0.4.0.
+
+With the overlay2 graph driver, `--disk` also says what each directory under `overlay2/` belongs to, from the driver's own records (`image/overlay2/layerdb`): image layers, container layers, and directories with no image or container record. When the last group is at least 64 MiB and a tenth of `overlay2/` beyond what all private build cache could explain, dockdu reports it and lists the largest of those directories. No Docker command lists them and no prune removes them. It never suggests deleting them by hand, because removing a directory the daemon still uses breaks images.
+
+On the containerd image store, `overlay2/` holds the classic store from before the switch. Docker [hides those images and containers but keeps them on disk](https://docs.docker.com/engine/storage/containerd/), so `docker system df` reports 0 B and `docker system prune -af` frees 0 B ([measured](docs/verification/buildx-overlay2-2026-10-15.md)). dockdu says so even without `--disk`, from one directory listing:
+
+```text
+  hidden: the classic image store still records 9 image layer(s) in overlay2/.
+  The containerd image store this daemon uses hides them, and no prune frees
+  them. dockdu --disk measures them.
+```
 
 dockdu shows the logical sizes and the block counts side by side and never subtracts one from the other. The walk is bounded by 50 million entries and 10 minutes; on a 300,000-file tree it took 1.3–1.5 s and 16–18 MB of memory (`du -sx`: about 1 s). A directory it cannot read, or a budget that runs out, makes the result a lower bound with a warning.
 
@@ -217,8 +230,8 @@ Checked against each tool's current docs or source on 2026-10-14; details and so
 | Storage per compose project | no | no | compose-aware UI, no sizes | no | no | yes |
 | Orphan volumes | LINKS = 0 | n/a | no flag | users per volume | "unused volumes" | unreferenced and not from compose, one `rm` hint each |
 | Docker Desktop VM file real size | no | no | no | no | **yes, in Settings** | yes, plus OrbStack, next to the resource total |
-| overlay2 / bind mount sizes | no | no | no | **yes** | not listed | no |
-| Named buildx builders | no | **yes** | no | no | not listed | no (default builder only) |
+| overlay2 / bind mount sizes | no | no | no | **yes** | not listed | `--disk`: overlay2 by owner (image, container, no record); classic store hidden by the containerd store |
+| Named buildx builders | no | **yes**, one builder per call | no | no | not listed | docker-container builders found through their state volumes, one prune hint each |
 | Can delete | no | no | yes, on request | no | yes, one click (Disk Usage extension) | never; the client refuses mutating requests |
 | Form | CLI, JSON | CLI, JSON | TUI | long-running web UI, mounts `/`, port 9090 | GUI | one-shot CLI, versioned JSON |
 
@@ -230,7 +243,7 @@ Checked against each tool's current docs or source on 2026-10-14; details and so
 
 - **It cannot delete anything.** Every Docker client dockdu creates carries a request hook that refuses any method other than GET/HEAD and any path other than `/_ping`, `/info`, `/system/df` and `/containers/<id>/json`, before the request leaves the process. A test against an instrumented fake Engine API fails if any remove, stop, kill, exec, create or prune call ever reaches it.
 - **`:ro` on the socket does not make Docker read-only.** `-v /var/run/docker.sock:/var/run/docker.sock:ro` only stops the container from replacing the socket file; any process that can talk to the socket can still send POST and DELETE requests and is effectively root on the host. The guarantee comes from dockdu's code above, so run a binary you trust: a release with `checksums.txt`, or build it yourself with `go install`. For a filter outside dockdu, see the socket-proxy notes in [docs/audits/security-and-readonly-contract.md](docs/audits/security-and-readonly-contract.md).
-- **It reads only metadata.** Log files are measured with `lstat`; their contents are never opened. Names from the daemon are stripped of control characters and shell-quoted inside suggested commands.
+- **It reads only metadata.** Log files are measured with `lstat`; their contents are never opened. With `--disk` it also reads the overlay2 layer ID files, which contain nothing but an ID. Names from the daemon are stripped of control characters and shell-quoted inside suggested commands.
 - **No network, no telemetry.** The only connection is the Docker endpoint you configured.
 
 <a id="limits"></a>
@@ -240,10 +253,10 @@ Checked against each tool's current docs or source on 2026-10-14; details and so
 - Linux hosts and Docker Desktop on macOS. Windows and WSL are not supported (inside a WSL2 distro running Docker Engine natively the Linux binary should work; not tested).
 - Connecting to a daemon is not seeing its files. For a remote `tcp://` daemon, or Colima and OrbStack whose data root is inside a VM, log files are reported as unmeasured, never guessed. `ssh://` contexts are not supported; set `DOCKER_HOST` instead.
 - Log sizes need read access to the data root: run as root, or as the container image with `/var/lib/docker:ro` mounted. Without it the logs section is reported as unmeasured, not as zero.
-- Only the daemon's built-in BuildKit builder is counted; named `docker buildx` builders keep their cache in their own volume, which shows up under volumes.
+- buildx builders are found only with the docker-container driver on the same daemon, by the name of their state volume; the builder name is derived from the default node name `<builder>0` and is otherwise left to `docker buildx ls`. Kubernetes and remote builders are not seen.
 - Podman is not tested.
 - Numbers are resource sizes as Docker reports them, with shared layers counted once. They are not disk-block counts and will not match `du` exactly.
-- Disk space Docker's API does not report is not attributed: overlay2 directories left behind by crashes, and on the containerd image store any content the API does not attribute to an image or a cache record. `dockdu --disk` shows how much the data root occupies on disk next to Docker's numbers; it does not say which layer belongs to what.
+- On the overlay2 graph driver, `--disk` cannot tell a BuildKit snapshot from a leftover directory (BuildKit's own records are a BoltDB the daemon holds locked), so it compares their sum with the private build cache instead of naming each one. On the containerd image store, content the API does not attribute to an image or a cache record is not attributed either.
 
 <a id="faq"></a>
 

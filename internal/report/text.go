@@ -131,6 +131,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	if f := r.Filesystem; f != nil {
 		row("data root filesystem", Bytes(f.UsedBytes), "used of "+Bytes(f.SizeBytes), Bytes(f.AvailableBytes)+" free")
 		p("    allocated blocks, a different measure from Docker's sizes\n")
+		if f.ClassicStoreLayers > 0 && f.DataRoot == nil {
+			para("  ", "  ", fmt.Sprintf("hidden: the classic image store still records %d image layer(s) in overlay2/. The containerd image store this daemon uses hides them, and no prune frees them. dockdu --disk measures them.", f.ClassicStoreLayers))
+		}
 	}
 	sug(s.Suggestions)
 
@@ -159,6 +162,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		if du.SkippedMounts > 0 {
 			para("  ", "  ", fmt.Sprintf("%d mount(s) inside the data root not entered (overlay mounts of running containers, separately mounted volumes)", du.SkippedMounts))
 		}
+		if o := du.Overlay2; o != nil {
+			writeOverlay2(&b, o, overlayTotal(du), para, list)
+		}
 		para("  ", "  ", "Docker's sizes above are logical sizes; these are blocks on disk. Compare the two side by side: if overlay2 or containerd is far larger than images + containers + build cache, the data root holds layers or content Docker does not list.")
 	}
 
@@ -170,6 +176,15 @@ func WriteText(w io.Writer, r *Report, top int) error {
 		para("  ", "  ", fmt.Sprintf("prune frees an unknown part of the %s shared with images: on the containerd image store a shared record can keep its own copy, and Docker does not report how much (on overlay2 none of it is freed). In use, never freed: %s", Bytes(bc.SharedBytes), Bytes(bc.InUseBytes)))
 	} else {
 		para("  ", "  ", fmt.Sprintf("prune would NOT free %s (shared with images or in use)", Bytes(bc.NotFreedByPrune)))
+	}
+	if len(bc.Builders) > 0 {
+		para("  ", "  ", "buildx builders with the docker-container driver keep their own cache in a state volume. It is counted under VOLUMES, not in the figures above:")
+		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(tw, "  BUILDER\tNODE\tSIZE\tSTATE")
+		for _, it := range bc.Builders {
+			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", orDash(safe(it.Builder)), safe(it.Node), Bytes(it.Bytes), buildxState(it.Reference))
+		}
+		tw.Flush()
 	}
 	sug(bc.Suggestions)
 
@@ -286,6 +301,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			if it.Orphan {
 				state = "orphan (unreferenced, not from compose)"
 			}
+			if it.BuildxNode != "" {
+				state += ", buildx builder state (see BUILD CACHE)"
+			}
 			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", safe(it.Name), orDash(safe(it.Project)), safe(it.Driver), Bytes(it.Bytes), refs, state)
 		}
 		tw.Flush()
@@ -315,6 +333,62 @@ func WriteText(w io.Writer, r *Report, top int) error {
 	}
 	_, err := io.WriteString(w, strings.Join(lines, "\n"))
 	return err
+}
+
+// overlayTotal is the walked size of overlay2/, -1 when it was not walked.
+func overlayTotal(du *DiskUsage) int64 {
+	for _, it := range du.Items {
+		if it.Name == "overlay2" {
+			return it.AllocatedBytes
+		}
+	}
+	return -1
+}
+
+// writeOverlay2 explains what the directories under overlay2/ belong to.
+func writeOverlay2(b *strings.Builder, o *Overlay2Usage, total int64, para func(first, cont, text string), list func(first, cont string, items ...string)) {
+	if o.HiddenByContainerdStore {
+		para("  ", "  ", fmt.Sprintf("overlay2: %s on disk from the classic image store. This daemon uses the containerd image store, which hides the classic store's images and containers but keeps them on disk: docker images, docker system df and every prune leave them out. Switch the daemon back to overlay2 to see and remove them; docker save any you still need first.", Bytes(total)))
+		return
+	}
+	if !o.LayerDB {
+		para("  ", "  ", "overlay2: the layer records under image/overlay2/layerdb could not be read, so its directories are not attributed")
+		return
+	}
+	fmt.Fprintf(b, "  overlay2 by owner\n")
+	list("    ", "    ", fmt.Sprintf("image layers %s in %d", Bytes(o.ImageLayerBytes), o.ImageLayers),
+		fmt.Sprintf("container layers %s in %d", Bytes(o.ContainerLayerBytes), o.ContainerLayers),
+		fmt.Sprintf("no image or container record %s in %d", Bytes(o.UnreferencedBytes), o.Unreferenced))
+	if o.Unreferenced == 0 {
+		return
+	}
+	switch {
+	case o.LikelyLeftovers:
+		para("    ", "    ", fmt.Sprintf("%s of these is more than all private build cache could explain (approximate: blocks on disk against logical sizes). No Docker command lists such directories and no prune removes them; they are typically left by interrupted pulls, builds or removals, or a daemon crash.", Bytes(o.NotExplainedByBuildCacheBytes)))
+	case o.NotExplainedByBuildCacheBytes >= 0:
+		para("    ", "    ", "within what BuildKit snapshots that are not part of an image (private build cache) and block overhead explain")
+		return
+	default:
+		return
+	}
+	tw := tabwriter.NewWriter(b, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "    LARGEST WITHOUT RECORD\tON DISK")
+	for _, it := range o.LargestUnreferenced {
+		fmt.Fprintf(tw, "    %s\t%s\n", safe(it.Name), Bytes(it.AllocatedBytes))
+	}
+	tw.Flush()
+}
+
+// buildxState describes a builder from its state volume's reference.
+func buildxState(reference string) string {
+	switch reference {
+	case "referenced":
+		return "builder container exists"
+	case "unreferenced":
+		return "no container: builder removed, state kept"
+	default:
+		return "unknown"
+	}
 }
 
 func orDash(s string) string {

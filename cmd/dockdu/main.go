@@ -142,8 +142,15 @@ func render(snap *engine.Snapshot, o renderOpts, stdout, stderr io.Writer) int {
 	fsys, w := collect.Filesystem(ctx, root, o.disk, collect.DefaultDiskBudget)
 	cancel()
 	rep.Filesystem = fsys
+	collect.InterpretOverlay2(fsys, rep)
+	if fsys != nil && rep.Daemon.ImageStore == "containerd" {
+		fsys.ClassicStoreLayers = collect.ClassicStoreLayers(root)
+		if fsys.ClassicStoreLayers > 0 && fsys.DataRoot == nil {
+			rep.Summary.Suggestions = append(rep.Summary.Suggestions, report.SuggestDiskWalk)
+		}
+	}
 	rep.Warnings = append(rep.Warnings, w...)
-	if fsys != nil && fsys.DataRoot == nil && fsys.SizeBytes > 0 && fsys.UsedBytes*5 >= fsys.SizeBytes*4 {
+	if fsys != nil && fsys.DataRoot == nil && fsys.ClassicStoreLayers == 0 && fsys.SizeBytes > 0 && fsys.UsedBytes*5 >= fsys.SizeBytes*4 {
 		// The filesystem is at least 80 % full: say how to find out whether
 		// the space is inside the data root.
 		rep.Summary.Suggestions = append(rep.Summary.Suggestions, report.SuggestDiskWalk)

@@ -35,6 +35,7 @@ func Volumes(s *engine.Snapshot) (report.Volumes, []string) {
 		it := report.VolumeItem{
 			Name: v.Name, Driver: v.Driver, Project: v.Labels[composeProjectLabel],
 			Bytes: -1, RefCount: v.RefCount, Reference: volumeReference(v),
+			BuildxNode: buildxNode(v.Name),
 		}
 		if v.HasUsageData && v.Size >= 0 {
 			it.Bytes = v.Size

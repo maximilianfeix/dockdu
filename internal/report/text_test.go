@@ -253,7 +253,9 @@ func worstCase() *Report {
 	r.Images = Images{Count: 99999, TotalBytes: huge, Dangling: 99999, ReclaimableBytes: huge, Items: []ImageItem{}}
 	r.Volumes = Volumes{Count: 99999, TotalBytes: huge, UnknownSizes: 99999, Items: []VolumeItem{}}
 	r.Filesystem = &Filesystem{Path: "/var/lib/docker", SizeBytes: huge, UsedBytes: huge, AvailableBytes: huge,
-		DataRoot: &DiskUsage{AllocatedBytes: huge, Entries: 99999999, Complete: false, SkippedMounts: 999, OutsideDataRootBytes: huge, Items: []DiskItem{}}}
+		DataRoot: &DiskUsage{AllocatedBytes: huge, Entries: 99999999, Complete: false, SkippedMounts: 999, OutsideDataRootBytes: huge, Items: []DiskItem{},
+			Overlay2: &Overlay2Usage{LayerDB: true, ImageLayers: 99999, ImageLayerBytes: huge, ContainerLayers: 99999, ContainerLayerBytes: huge,
+				Unreferenced: 99999, UnreferencedBytes: huge, NotExplainedByBuildCacheBytes: huge, LikelyLeftovers: true, LargestUnreferenced: []DiskItem{}}}}
 	r.Desktop.ApparentBytes, r.Desktop.AllocatedBytes, r.Desktop.DockerReportedBytes = huge, huge, huge
 	r.Desktop.Explanation = "Space inside the VM disk file is freed when images, containers, volumes or build cache are removed. The file itself only shrinks when Docker Desktop compacts it; lowering the disk usage limit under Settings → Resources → Advanced deletes the file and everything in it."
 	r.Warnings = []string{"logs: 3 container(s) not measured: /var/lib/docker/containers is not visible from here: log directory not found under the data root. On Docker Desktop the data root is inside the VM; run the container image (see README)"}
@@ -327,5 +329,106 @@ func TestWriteTextDemoValuesNeverSplitAUnit(t *testing.T) {
 		if f := strings.Fields(line); len(f) > 0 && units[strings.TrimRight(f[0], ".,;:)")] {
 			t.Errorf("line %d starts with a unit split from its number:\n%s", i+1, line)
 		}
+	}
+}
+
+func TestWriteTextBuildxBuilders(t *testing.T) {
+	r := goldenReport()
+	r.BuildCache.Builders = []BuildxBuilder{
+		{Node: "ci0", Builder: "ci", Volume: "buildx_buildkit_ci0_state", Bytes: 7 << 30, Reference: "referenced"},
+		{Node: "old0", Builder: "old", Volume: "buildx_buildkit_old0_state", Bytes: 300 << 20, Reference: "unreferenced"},
+	}
+	r.BuildCache.Suggestions = append(r.BuildCache.Suggestions, SuggestBuildxPrune("ci"))
+	r.Volumes.Items = append(r.Volumes.Items, VolumeItem{Name: "buildx_buildkit_ci0_state", Driver: "local", Bytes: 7 << 30, RefCount: 1, Reference: "referenced", BuildxNode: "ci0"})
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 0); err != nil {
+		t.Fatal(err)
+	}
+	out := flat(buf.String())
+	for _, want := range []string{
+		"keep their own cache in a state volume. It is counted under VOLUMES, not in the figures above",
+		"ci ci0 7.0 GiB builder container exists",
+		"old old0 300.0 MiB no container: builder removed, state kept",
+		"→ docker buildx prune --builder=ci",
+		"referenced, buildx builder state (see BUILD CACHE)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, buf.String())
+		}
+	}
+}
+
+func TestSuggestBuildxPruneQuotesAndRefuses(t *testing.T) {
+	if got := SuggestBuildxPrune("a b;rm -rf /"); !strings.HasPrefix(got, "docker buildx prune --builder='a b;rm -rf /'   #") {
+		t.Fatalf("not quoted: %q", got)
+	}
+	if got := SuggestBuildxPrune("-x"); !strings.HasPrefix(got, "docker buildx prune --builder=-x ") && !strings.HasPrefix(got, "docker buildx prune --builder='-x'") {
+		t.Fatalf("leading dash must stay attached to --builder=: %q", got)
+	}
+	for _, bad := range []string{"", "x\x1b[2J", "x‮"} {
+		if got := SuggestBuildxPrune(bad); got != SuggestBuildxLs {
+			t.Fatalf("%q: want the lookup hint, got %q", bad, got)
+		}
+	}
+}
+
+func TestWriteTextOverlay2Leftovers(t *testing.T) {
+	r := goldenReport()
+	r.Filesystem = &Filesystem{Path: "/var/lib/docker", SizeBytes: 100 << 30, UsedBytes: 90 << 30, AvailableBytes: 10 << 30,
+		DataRoot: &DiskUsage{AllocatedBytes: 60 << 30, Complete: true, Items: []DiskItem{{Name: "overlay2", AllocatedBytes: 50 << 30}},
+			Overlay2: &Overlay2Usage{LayerDB: true, ImageLayers: 40, ImageLayerBytes: 10 << 30, ContainerLayers: 2, ContainerLayerBytes: 1 << 20,
+				Unreferenced: 3, UnreferencedBytes: 40 << 30, NotExplainedByBuildCacheBytes: 39 << 30, LikelyLeftovers: true,
+				LargestUnreferenced: []DiskItem{{Name: "abcdefabcdefabcdefabcdefab", AllocatedBytes: 38 << 30}}}}}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	out := flat(buf.String())
+	for _, want := range []string{
+		"image layers 10.0 GiB in 40 · container layers 1.0 MiB in 2", "no image or container record 40.0 GiB in 3",
+		"39.0 GiB of these is more than all private build cache could explain",
+		"abcdefabcdefabcdefabcdefab 38.0 GiB",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, buf.String())
+		}
+	}
+	// Below the threshold: no finding, no table.
+	r.Filesystem.DataRoot.Overlay2.LikelyLeftovers = false
+	r.Filesystem.DataRoot.Overlay2.NotExplainedByBuildCacheBytes = 0
+	buf.Reset()
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if out := flat(buf.String()); strings.Contains(out, "more than all private build cache") || strings.Contains(out, "LARGEST WITHOUT RECORD") ||
+		!strings.Contains(out, "within what BuildKit snapshots") {
+		t.Fatalf("no finding expected:\n%s", buf.String())
+	}
+}
+
+func TestWriteTextOverlay2HiddenClassicStore(t *testing.T) {
+	r := goldenReport()
+	r.Filesystem = &Filesystem{Path: "/var/lib/docker", DataRoot: &DiskUsage{Complete: true,
+		Items:    []DiskItem{{Name: "overlay2", AllocatedBytes: 12 << 30}},
+		Overlay2: &Overlay2Usage{HiddenByContainerdStore: true, LargestUnreferenced: []DiskItem{}}}}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if out := flat(buf.String()); !strings.Contains(out, "overlay2: 12.0 GiB on disk from the classic image store") ||
+		!strings.Contains(out, "Switch the daemon back to overlay2 to see and remove them") {
+		t.Fatalf("hidden classic store not explained:\n%s", buf.String())
+	}
+}
+
+func TestWriteTextClassicStoreHintWithoutDisk(t *testing.T) {
+	r := goldenReport()
+	r.Filesystem = &Filesystem{Path: "/var/lib/docker", SizeBytes: 100 << 30, UsedBytes: 10 << 30, AvailableBytes: 90 << 30, ClassicStoreLayers: 9}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 10); err != nil {
+		t.Fatal(err)
+	}
+	if out := flat(buf.String()); !strings.Contains(out, "the classic image store still records 9 image layer(s) in overlay2/") {
+		t.Fatalf("hint missing:\n%s", buf.String())
 	}
 }

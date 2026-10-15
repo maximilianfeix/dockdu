@@ -1,4 +1,5 @@
 .build_cache
+.build_cache.buildx_builders
 .build_cache.df_row_excludes_shared
 .build_cache.df_row_mismatch
 .build_cache.in_use_bytes

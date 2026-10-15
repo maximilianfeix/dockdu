@@ -9,8 +9,8 @@ import (
 	"github.com/maximilianfeix/dockdu/internal/report"
 )
 
-func walkAllocated(context.Context, string, DiskBudget) (*report.DiskUsage, error) {
-	return nil, errors.New("--disk is only implemented on Linux and macOS")
+func walkAllocated(context.Context, string, DiskBudget) (*report.DiskUsage, map[string]int64, error) {
+	return nil, nil, errors.New("--disk is only implemented on Linux and macOS")
 }
 
 func statFS(string) (fsInfo, error) {

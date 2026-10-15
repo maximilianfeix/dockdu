@@ -19,15 +19,17 @@ const rootFilesItem = "(files)"
 // inode with several hard links is counted once; directories on another
 // device (overlay mounts of running containers, separately mounted
 // volumes) are not entered. File contents are never opened. The result is
-// grouped by the top-level entry of root.
-func walkAllocated(ctx context.Context, root string, budget DiskBudget) (*report.DiskUsage, error) {
+// grouped by the top-level entry of root. The allocated bytes of each
+// direct child of overlay2/ are returned too (nil without an overlay2
+// directory), so the layers can be attributed afterwards.
+func walkAllocated(ctx context.Context, root string, budget DiskBudget) (*report.DiskUsage, map[string]int64, error) {
 	rootInfo, err := os.Lstat(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rootStat, ok := rootInfo.Sys().(*syscall.Stat_t)
 	if !ok {
-		return nil, os.ErrInvalid
+		return nil, nil, os.ErrInvalid
 	}
 	dev := uint64(rootStat.Dev)
 	w := &walker{ctx: ctx, dev: dev, budget: budget, seen: map[[2]uint64]struct{}{},
@@ -37,8 +39,9 @@ func walkAllocated(ctx context.Context, root string, budget DiskBudget) (*report
 
 	top, err := os.ReadDir(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	var layers map[string]int64
 	items := map[string]*report.DiskItem{}
 	item := func(name string) *report.DiskItem {
 		if it, ok := items[name]; ok {
@@ -66,6 +69,10 @@ func walkAllocated(ctx context.Context, root string, budget DiskBudget) (*report
 				w.du.SkippedMounts++
 				continue
 			}
+			if e.Name() == "overlay2" {
+				layers = w.children(path, st, item(e.Name()))
+				continue
+			}
 			w.dir(path, st, item(e.Name()))
 			continue
 		}
@@ -75,7 +82,48 @@ func walkAllocated(ctx context.Context, root string, budget DiskBudget) (*report
 		w.du.Items = append(w.du.Items, *it)
 	}
 	sortDiskItems(w.du.Items)
-	return w.du, nil
+	return w.du, layers, nil
+}
+
+// children walks dir like dir() and returns the allocated bytes of each
+// direct child that is a directory on the same device.
+func (w *walker) children(path string, st *syscall.Stat_t, it *report.DiskItem) map[string]int64 {
+	w.count(st, it)
+	out := map[string]int64{}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		w.du.UnreadableDirs++
+		w.du.Complete = false
+		return nil // nothing to attribute
+	}
+	for _, e := range entries {
+		if w.atDirectory() {
+			break
+		}
+		p := filepath.Join(path, e.Name())
+		fi, err := os.Lstat(p)
+		if err != nil {
+			continue // removed while walking
+		}
+		cst, ok := fi.Sys().(*syscall.Stat_t)
+		if !ok {
+			continue
+		}
+		if !fi.IsDir() {
+			w.count(cst, it)
+			continue
+		}
+		if uint64(cst.Dev) != w.dev {
+			w.du.SkippedMounts++
+			continue
+		}
+		child := &report.DiskItem{}
+		w.dir(p, cst, child)
+		out[e.Name()] = child.AllocatedBytes
+		it.AllocatedBytes += child.AllocatedBytes
+		it.Entries += child.Entries
+	}
+	return out
 }
 
 type walker struct {

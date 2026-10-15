@@ -18,7 +18,18 @@ const (
 	SuggestDiskWalk              = "dockdu --disk   # read-only: measures what the data root occupies on disk, to tell Docker's share of this filesystem from everything else (walks every file; can take minutes)"
 	SuggestLogOptsDaemonRootless = `set "log-opts" in ~/.config/docker/daemon.json (rootless daemon): {"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}   # new containers only`
 	SuggestLogOptsContainer      = "recreate the container with --log-opt max-size=10m --log-opt max-file=3   # or --log-driver local"
+	SuggestBuildxLs              = "docker buildx ls   # find the builder each buildx_buildkit_<node>_state volume belongs to, then docker buildx prune --builder=<name>"
 )
+
+// SuggestBuildxPrune formats the prune hint for a docker-container buildx
+// builder. The name is derived from a volume name, so it is quoted like
+// one; with control characters it falls back to the lookup hint.
+func SuggestBuildxPrune(builder string) string {
+	if builder == "" || strings.IndexFunc(builder, unsafeRune) >= 0 {
+		return SuggestBuildxLs
+	}
+	return "docker buildx prune --builder=" + ShellQuote(builder) + "   # this builder's cache lives in its state volume, not in df's build cache row"
+}
 
 // SuggestVolumeRm formats the single-volume removal hint. There is no
 // bulk form on purpose. The name comes from the daemon, so it is quoted
