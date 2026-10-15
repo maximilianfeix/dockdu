@@ -7,6 +7,9 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 ### Added
 - Volumes Docker created without a name (an image `VOLUME` or `-v /path`, label `com.docker.volume.anonymous`) are marked `anonymous` in the volume list and in JSON (`volumes.items[].anonymous`). `docker rm` without `-v` leaves them behind. Verified on Engine 29.9.
 
+### Fixed
+- Homebrew no longer prints "Calling `postflight` is deprecated" on install or upgrade: the cask removes the quarantine flag with `postflight_steps` (GoReleaser `custom_block`) instead of a `postflight` block. Tested by reinstalling from the local tap: no warning, quarantine flag removed (and present without the step).
+
 ## [0.4.0] - 2026-10-15
 
 ### Added
