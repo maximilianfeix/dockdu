@@ -207,3 +207,15 @@ func TestProjectsReportImageLayerOverlap(t *testing.T) {
 		t.Fatalf("without a df image total there is no overlap claim, got %d", got.ImageOverlapBytes)
 	}
 }
+
+func TestVolumesMarkAnonymous(t *testing.T) {
+	s := &engine.Snapshot{Volumes: []engine.Volume{
+		{Name: "3f1c0e9a8b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e", HasUsageData: true, Size: 9, RefCount: 0,
+			Labels: map[string]string{"com.docker.volume.anonymous": ""}},
+		{Name: "named", HasUsageData: true, Size: 1, RefCount: 0},
+	}}
+	got, _ := Volumes(s)
+	if !got.Items[0].Anonymous || !got.Items[0].Orphan || got.Items[1].Anonymous {
+		t.Fatalf("anonymous flag: %+v", got.Items)
+	}
+}

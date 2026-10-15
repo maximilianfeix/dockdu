@@ -251,6 +251,10 @@ type VolumeItem struct {
 	// BuildxNode is set when the volume is the state volume of a buildx
 	// docker-container builder node: it holds that builder's build cache.
 	BuildxNode string `json:"buildx_node,omitempty"`
+	// Anonymous is true for a volume Docker created without a name (an
+	// image VOLUME or `-v /path`), labelled com.docker.volume.anonymous.
+	// `docker rm` without -v leaves such volumes behind.
+	Anonymous bool `json:"anonymous"`
 }
 
 // Desktop is the macOS Docker Desktop / OrbStack section.

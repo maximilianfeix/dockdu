@@ -301,6 +301,9 @@ func WriteText(w io.Writer, r *Report, top int) error {
 			if it.Orphan {
 				state = "orphan (unreferenced, not from compose)"
 			}
+			if it.Anonymous {
+				state += ", anonymous"
+			}
 			if it.BuildxNode != "" {
 				state += ", buildx builder state (see BUILD CACHE)"
 			}

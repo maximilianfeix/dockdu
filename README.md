@@ -119,7 +119,7 @@ VOLUMES  (2 · total 32.0 MiB · size unknown for 0)
 - **Logs per container.** Current file plus rotated siblings, the driver, whether rotation is bounded, and which compose service produced them. Measured with `stat` only; nothing is opened or read.
 - **Compose projects as the unit.** Containers, images, volumes and logs per project, orphans flagged, images used by several projects marked and counted once. Image sizes include base layers shared between different images; when that makes the columns add up to more than df's image row, dockdu says by how much.
 - **Images with "unique if removed".** Size minus shared layers, only when no container uses the image and the daemon computed both numbers. Otherwise `unknown`, never `0`.
-- **Volumes with a state.** Referenced, unreferenced, or unknown. Orphan only when unreferenced *and* not created by compose. The hint is one `docker volume rm <name>` per orphan; dockdu never suggests `volume prune` or `--volumes`.
+- **Volumes with a state.** Referenced, unreferenced, or unknown. Orphan only when unreferenced *and* not created by compose. Volumes Docker created without a name (left behind by `docker rm` without `-v`) are marked anonymous. The hint is one `docker volume rm <name>` per orphan; dockdu never suggests `volume prune` or `--volumes`.
 - **Warnings instead of guesses.** A log directory it cannot read, or a volume whose size the driver does not report, makes the total a lower bound, says so, and exits 2 so scripts notice.
 
 <a id="docker-desktop"></a>

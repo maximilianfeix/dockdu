@@ -7,6 +7,10 @@ import (
 	"github.com/maximilianfeix/dockdu/internal/report"
 )
 
+// anonymousVolumeLabel marks volumes Docker created without a name (moby
+// daemon/volume/service/service.go AnonymousLabel).
+const anonymousVolumeLabel = "com.docker.volume.anonymous"
+
 // volumeReference classifies a volume as referenced, unreferenced or
 // unknown. A missing usage block or a RefCount of -1 is unknown, never
 // unreferenced: dockdu must not call something an orphan on a guess.
@@ -37,6 +41,7 @@ func Volumes(s *engine.Snapshot) (report.Volumes, []string) {
 			Bytes: -1, RefCount: v.RefCount, Reference: volumeReference(v),
 			BuildxNode: buildxNode(v.Name),
 		}
+		_, it.Anonymous = v.Labels[anonymousVolumeLabel]
 		if v.HasUsageData && v.Size >= 0 {
 			it.Bytes = v.Size
 			out.TotalBytes += v.Size

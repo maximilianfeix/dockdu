@@ -432,3 +432,15 @@ func TestWriteTextClassicStoreHintWithoutDisk(t *testing.T) {
 		t.Fatalf("hint missing:\n%s", buf.String())
 	}
 }
+
+func TestWriteTextMarksAnonymousVolumes(t *testing.T) {
+	r := goldenReport()
+	r.Volumes.Items = []VolumeItem{{Name: "3f1c0e9a8b7d", Driver: "local", Bytes: 9, Reference: "unreferenced", Orphan: true, Anonymous: true}}
+	var buf bytes.Buffer
+	if err := WriteText(&buf, r, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(flat(buf.String()), "orphan (unreferenced, not from compose), anonymous") {
+		t.Fatalf("anonymous not shown:\n%s", buf.String())
+	}
+}
