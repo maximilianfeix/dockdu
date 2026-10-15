@@ -25,6 +25,7 @@
 .daemon.storage_driver
 .filesystem
 .filesystem.available_bytes
+.filesystem.classic_store_layers
 .filesystem.path
 .filesystem.size_bytes
 .filesystem.used_bytes

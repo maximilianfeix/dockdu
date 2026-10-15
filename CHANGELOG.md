@@ -4,7 +4,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Volumes Docker created without a name (an image `VOLUME` or `-v /path`, label `com.docker.volume.anonymous`) are marked `anonymous` in the volume list and in JSON (`volumes.items[].anonymous`). `docker rm` without `-v` leaves them behind. Verified on Engine 29.9.
 
 ## [0.4.0] - 2026-10-15
 
