@@ -167,7 +167,7 @@ DATA ROOT ON DISK  (/var/lib/docker · allocated blocks · 806 entries · comple
 
 What the result tells you:
 - **`outside the data root` is large:** the full disk is mostly not Docker's.
-- **`overlay2` or `containerd` is far larger than images + containers + build cache:** the data root holds layers or content the API does not list. Leftovers from crashes, and on the containerd image store the compressed content kept next to the unpacked snapshots.
+- **`overlay2` or `containerd` is far larger than images + containers + build cache:** the data root holds layers or content the API does not list, typically leftovers from crashes or interrupted pulls. On the containerd image store the compressed content kept next to the unpacked snapshots is not such a gap: on Engine 29.9, df's Images row (296.5 MB) matched content (72.4 MB) plus snapshots (224.4 MB) on disk.
 
 > Since v0.4.0.
 

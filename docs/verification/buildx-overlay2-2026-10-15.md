@@ -114,3 +114,20 @@ dockdu with `--disk`:
 ```
 
 A fresh `docker:29-dind` (containerd image store from the start, one pull, one build) has no `overlay2/` directory, and dockdu prints neither hint.
+
+## D. containerd image store: does df count the compressed content? (Engine 29.9.0)
+
+Fresh `docker:29-dind`, `nginx:1.29-alpine` and `python:3.13-slim` pulled:
+
+```text
+$ docker images
+IMAGE               ID             DISK USAGE   CONTENT SIZE
+nginx:1.29-alpine   5616878291a2       92.7MB         26.7MB
+python:3.13-slim    70729b46c69b        204MB         45.5MB
+$ docker system df   → Images 296.5MB
+$ du -sk /var/lib/docker/containerd/daemon/io.containerd.content.v1.content io.containerd.snapshotter.v1.overlayfs
+70668	io.containerd.content.v1.content
+219148	io.containerd.snapshotter.v1.overlayfs
+```
+
+72.4 MB + 224.4 MB = 296.8 MB: the Images row already includes the compressed content next to the unpacked snapshots. The README said otherwise and was corrected.
