@@ -54,12 +54,17 @@ homebrew_casks:
     homepage: https://github.com/maximilianfeix/dockdu
     description: "Explains where Docker's disk space went and what prune would NOT give back"
     binaries: [dockdu]
-    hooks:
-      post:
-        # The binary is not notarised; remove the quarantine flag so macOS runs it.
-        # Guarded so the same cask installs on Linuxbrew, where xattr does not exist.
-        install: |
-          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/dockdu"] if File.executable?("/usr/bin/xattr")
+    # The binary is not notarised; remove the quarantine flag so macOS runs it.
+    # postflight_steps replaces the deprecated postflight block (Homebrew
+    # install_steps.rb); on_macos keeps Linuxbrew, which has no xattr, out.
+    # custom_block is a Go template, so Homebrew's {{staged_path}} token is
+    # written through string literals.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{" }}staged_path{{ "}}" }}/dockdu"]
+        end
+      end
 
 dockers_v2:
   - id: dockdu
