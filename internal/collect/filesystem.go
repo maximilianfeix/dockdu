@@ -47,9 +47,12 @@ func Filesystem(ctx context.Context, root string, walk bool, budget DiskBudget) 
 	if !walk {
 		return out, nil
 	}
-	du, err := walkAllocated(ctx, root, budget)
+	du, layers, err := walkAllocated(ctx, root, budget)
 	if err != nil {
 		return out, []string{fmt.Sprintf("disk: cannot walk %s: %v", root, err)}
+	}
+	if layers != nil {
+		du.Overlay2 = attributeOverlay2(root, layers)
 	}
 	du.OutsideDataRootBytes = -1
 	if du.Complete && st.used >= du.AllocatedBytes {

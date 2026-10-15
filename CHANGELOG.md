@@ -4,7 +4,13 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- buildx builders with the docker-container driver: their state volumes (`buildx_buildkit_<node>_state`) are listed under BUILD CACHE (`build_cache.buildx_builders`) and marked in the volume list (`volumes.items[].buildx_node`), with a `docker buildx prune --builder=<name>` hint per builder. On Engine 29.9 that builder held 70 MiB that df's build cache row showed as 0 B; `docker builder prune -af` freed none of it.
+- `--disk` attributes `overlay2/` from the graph driver's layer records: image layers, container layers, and directories without any record. Unrecorded space beyond what private build cache can explain is reported as likely leftovers (≥ 64 MiB and ≥ 10 % of overlay2), with the largest directories listed.
+- On the containerd image store, the classic store's overlay2 data that Docker hides after the switch is reported, without `--disk` from one directory listing (`filesystem.classic_store_layers`) and with `--disk` by size (`overlay2.hidden_by_containerd_store`). Measured: df 0 B, `docker system prune -af` 0 B freed, 71.8 MiB on disk.
+
+### Changed
+- `--disk` opens the overlay2 layer ID files (one short ID each, through `os.Root`); nothing else is opened.
 
 ## [0.3.3] - 2026-10-14
 

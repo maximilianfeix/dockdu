@@ -111,8 +111,28 @@ type BuildCache struct {
 	// the data, so a prune frees an unknown part of SharedBytes and
 	// NotFreedByPrune is -1. Measured 2026-10-14: Engine 29.9 freed 72.7 of
 	// 140.7 MiB of shared records; Engine 28.5 on overlay2 freed none.
-	SharedMayBeFreedByPrune bool     `json:"shared_may_be_freed_by_prune"`
-	Suggestions             []string `json:"suggestions"`
+	SharedMayBeFreedByPrune bool `json:"shared_may_be_freed_by_prune"`
+	// Builders are buildx builders with the docker-container driver, found
+	// through their state volumes. Their cache is not in df's build cache
+	// row or in the records above; its size is the volume's, which df
+	// counts under volumes. Never null.
+	Builders    []BuildxBuilder `json:"buildx_builders"`
+	Suggestions []string        `json:"suggestions"`
+}
+
+// BuildxBuilder is one docker-container buildx node and its state volume
+// (buildx_buildkit_<node>_state, buildx driver/docker-container).
+type BuildxBuilder struct {
+	Node   string `json:"node"`
+	Volume string `json:"volume"`
+	// Builder is the builder name derived from buildx's default node name
+	// <builder>0; "" when the node name does not follow it.
+	Builder string `json:"builder,omitempty"`
+	Bytes   int64  `json:"bytes"`
+	// Reference is the volume's: "referenced" while the builder's
+	// container exists, "unreferenced" after `docker buildx rm
+	// --keep-state` or a manual container removal, or "unknown".
+	Reference string `json:"reference"`
 }
 
 // Logs lists container log files on disk.
@@ -228,6 +248,9 @@ type VolumeItem struct {
 	// Reference is "referenced", "unreferenced" or "unknown".
 	Reference string `json:"reference"`
 	Orphan    bool   `json:"orphan"`
+	// BuildxNode is set when the volume is the state volume of a buildx
+	// docker-container builder node: it holds that builder's build cache.
+	BuildxNode string `json:"buildx_node,omitempty"`
 }
 
 // Desktop is the macOS Docker Desktop / OrbStack section.
@@ -253,6 +276,11 @@ type Filesystem struct {
 	// DataRoot is the measured allocation under the data root; only with
 	// --disk, which walks the tree.
 	DataRoot *DiskUsage `json:"data_root_on_disk,omitempty"`
+	// ClassicStoreLayers counts the image layers the classic (graph
+	// driver) store still records while the daemon uses the containerd
+	// image store. Docker hides them; their bytes are in overlay2/, which
+	// --disk measures. 0 otherwise.
+	ClassicStoreLayers int `json:"classic_store_layers"`
 }
 
 // DiskUsage is a du-style walk of the data root: allocated blocks, each
@@ -274,6 +302,45 @@ type DiskUsage struct {
 	// walk was complete.
 	OutsideDataRootBytes int64      `json:"outside_data_root_bytes"`
 	Items                []DiskItem `json:"items"`
+	// Overlay2 attributes the directories under overlay2/; nil when the
+	// data root has none.
+	Overlay2 *Overlay2Usage `json:"overlay2,omitempty"`
+}
+
+// Overlay2Usage splits overlay2/ by what references each directory, from
+// the graph driver's own records under image/overlay2/layerdb: image
+// layers (sha256/*/cache-id) and container layers (mounts/*/mount-id and
+// init-id). Everything else is unreferenced: BuildKit snapshots that are
+// not part of an image, and directories that no image, container or build
+// cache owns any more (interrupted pulls, builds or removals, crashes).
+// The short-name link directory l/ is not attributed.
+type Overlay2Usage struct {
+	// LayerDB is false when the layer records could not be read; nothing
+	// is attributed then and the byte fields are -1.
+	LayerDB             bool  `json:"layerdb_read"`
+	ImageLayers         int   `json:"image_layers"`
+	ImageLayerBytes     int64 `json:"image_layer_bytes"`
+	ContainerLayers     int   `json:"container_layers"`
+	ContainerLayerBytes int64 `json:"container_layer_bytes"`
+	Unreferenced        int   `json:"unreferenced"`
+	UnreferencedBytes   int64 `json:"unreferenced_bytes"`
+	// LargestUnreferenced are the largest unreferenced directories, at
+	// most ten, largest first.
+	LargestUnreferenced []DiskItem `json:"largest_unreferenced"`
+	// HiddenByContainerdStore is true when the daemon uses the containerd
+	// image store: then everything in overlay2/ belongs to the classic
+	// store, whose images and containers Docker hides but keeps on disk.
+	HiddenByContainerdStore bool `json:"hidden_by_containerd_store"`
+	// NotExplainedByBuildCacheBytes is UnreferencedBytes minus the build
+	// cache's private bytes, at least 0: unreferenced space that even
+	// all private build cache would not account for. Blocks on disk
+	// against logical sizes, so approximate. -1 when unknown or when the
+	// containerd image store is in use.
+	NotExplainedByBuildCacheBytes int64 `json:"not_explained_by_build_cache_bytes"`
+	// LikelyLeftovers is true when NotExplainedByBuildCacheBytes is at
+	// least 64 MiB and at least a tenth of overlay2/: more than block
+	// overhead and timing (a pull or build during the walk) explain.
+	LikelyLeftovers bool `json:"likely_leftovers"`
 }
 
 // DiskItem is one top-level entry of the data root (overlay2, containerd,

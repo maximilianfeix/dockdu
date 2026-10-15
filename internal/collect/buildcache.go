@@ -80,6 +80,7 @@ func BuildCache(s *engine.Snapshot) (report.BuildCache, []string) {
 		SharedCountedInDfBytes: sharedInDf,
 		DfRowExcludesShared:    excludesShared,
 		DfRowMismatch:          mismatch,
+		Builders:               []report.BuildxBuilder{},
 		Suggestions:            []string{},
 	}
 	if containerdStore(s) && shared > 0 {
