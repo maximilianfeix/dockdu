@@ -75,7 +75,8 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 
 - **v0.4.0 released and verified:** buildx docker-container builders (state volumes), `--disk` overlay2 by owner with a leftover finding (≥ 64 MiB and ≥ 10 %), classic store hidden by the containerd image store (also without `--disk`). Evidence: `docs/verification/buildx-overlay2-2026-10-15.md` (A–D).
 - **Corrected:** README claimed containerd's compressed content is outside df; measured that df's Images row includes it (#44).
-- **Unreleased on main:** anonymous volume marking (#45).
+- **v0.5.0 released and verified:** anonymous volume marking (#45); cask uses `postflight_steps`, so `brew upgrade` no longer prints the postflight deprecation warning (#46). Verified: 4/4 checksums, ghcr v0.5.0, `go install`, brew upgrade without warning, quarantine flag removed.
+- Docker on this Mac is back to empty (0 containers, volumes, images).
 - **Published:** second dev.to article and one X post (links in `docs/growth/overnight-log.md`).
 
 ## Next executable steps
@@ -83,7 +84,6 @@ Remove containers and volumes by ID/name after checking the label; never prune.
 1. Watch awesome-docker#1578 and cli-apps#509 and answer reviewers the same day.
 2. X: one post published (22:13). No repeats; answer genuine replies. Stop the promotional replies a parallel session posted under unrelated threads.
 3. Weekly measurement (docs/growth/measurement.md). Don't count the agent's own downloads.
-4. Homebrew `postflight` deprecation: switch to `postflight_steps` once GoReleaser supports it, or use `custom_block`.
 5. Finish the Terminal Trove form by hand; send the Console.dev email (text in launch-kit/submissions.md).
 
 ## Test status of the v0.2 branch (release validation 2026-10-14)
@@ -118,7 +118,8 @@ Found and fixed during validation: the IMAGES "reclaimable (as df counts it)" la
 
 - **v0.4.0 released and verified:** buildx docker-container builders (state volumes), `--disk` overlay2 by owner with a leftover finding (≥ 64 MiB and ≥ 10 %), classic store hidden by the containerd image store (also without `--disk`). Evidence: `docs/verification/buildx-overlay2-2026-10-15.md` (A–D).
 - **Corrected:** README claimed containerd's compressed content is outside df; measured that df's Images row includes it (#44).
-- **Unreleased on main:** anonymous volume marking (#45).
+- **v0.5.0 released and verified:** anonymous volume marking (#45); cask uses `postflight_steps`, so `brew upgrade` no longer prints the postflight deprecation warning (#46). Verified: 4/4 checksums, ghcr v0.5.0, `go install`, brew upgrade without warning, quarantine flag removed.
+- Docker on this Mac is back to empty (0 containers, volumes, images).
 - **Published:** second dev.to article and one X post (links in `docs/growth/overnight-log.md`).
 
 ## Next executable steps (in order)

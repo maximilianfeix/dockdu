@@ -33,6 +33,7 @@ Times are CEST.
 | ~05:30 (10-15) | dev.to | Second article "docker builder prune freed 0 B: two places Docker keeps disk space that no prune reaches", AI disclosure "Fully Autonomous" plus in-text disclosure | https://dev.to/taventix/docker-builder-prune-freed-0-b-two-places-docker-keeps-disk-space-that-no-prune-reaches-3lpb | published | watch comments |
 | 07:34 (10-15) | X (@44errrr) | One post with the two new measurements and the article link (the earlier post had 65 views, 1 like, no replies) | https://x.com/44errrr/status/2110605324419805596 | published | answer genuine replies; no repeats |
 | ~05:30 (10-15) | GitHub | Topics added: buildx, overlay2, containerd, docker-cleanup (19 of 20) | repo page | published | — |
+| ~08:00 (10-15) | GitHub release | v0.5.0: anonymous volumes, cask postflight_steps (no Homebrew deprecation warning) | https://github.com/maximilianfeix/dockdu/releases/tag/v0.5.0 | published, verified | — |
 | — | Console.dev, newsletters | Email pitches | launch-kit/submissions.md | **drafted**: email is excluded by the maintainer's rules | maintainer sends |
 
 ## Measurements
