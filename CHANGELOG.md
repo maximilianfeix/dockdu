@@ -4,6 +4,10 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.0] - 2026-10-15
+
 ### Added
 - Volumes Docker created without a name (an image `VOLUME` or `-v /path`, label `com.docker.volume.anonymous`) are marked `anonymous` in the volume list and in JSON (`volumes.items[].anonymous`). `docker rm` without `-v` leaves them behind. Verified on Engine 29.9.
 
@@ -80,7 +84,8 @@ All notable changes to dockdu are listed here. The format follows [Keep a Change
 - Exit codes: 0 complete, 1 daemon unreachable, 2 report with warnings, 64 usage error.
 - Homebrew cask, `go install`, and a `FROM scratch` container image for hosts where the data root is only visible inside the VM.
 
-[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/dockdu/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/maximilianfeix/dockdu/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/maximilianfeix/dockdu/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/maximilianfeix/dockdu/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/maximilianfeix/dockdu/compare/v0.3.1...v0.3.2
